@@ -26,8 +26,9 @@ RUN pnpm install --frozen-lockfile
 # ─── Build ────────────────────────────────────
 FROM base AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/db/node_modules ./packages/db/node_modules
+# Copy all node_modules from deps (includes workspace-level node_modules with their bins)
+COPY --from=deps /app .
+# Overlay with full source (node_modules excluded via .dockerignore)
 COPY . .
 
 # Generate Prisma client
