@@ -1,25 +1,11 @@
 version: "3.9"
 
-# Production deployment for Hetzner with Caddy (auto HTTPS)
+# Production deployment — uses shared Caddy proxy on the server
 # Usage:
 #   1. Copy .env.example to .env.production and fill in values
 #   2. docker compose -f docker/docker-compose.prod.yml up -d --build
 
 services:
-  caddy:
-    image: caddy:2-alpine
-    ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - web
-    restart: unless-stopped
-
   web:
     build:
       context: ..
@@ -33,12 +19,15 @@ services:
       NEXT_PUBLIC_APP_URL: https://rankflo.io
       RANKFLO_MODE: oss
       DATABASE_URL: postgresql://${POSTGRES_USER:-rankflo}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rankflo}
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - internal
+      - proxy
     restart: unless-stopped
 
   postgres:
@@ -54,6 +43,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
     restart: unless-stopped
 
   redis:
@@ -66,10 +57,15 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - internal
     restart: unless-stopped
 
 volumes:
   pgdata:
   redisdata:
-  caddy_data:
-  caddy_config:
+
+networks:
+  internal:
+  proxy:
+    external: true
