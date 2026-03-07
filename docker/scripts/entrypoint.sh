@@ -6,7 +6,7 @@ echo "RankFlo — Starting up..."
 # Run database migrations if DATABASE_URL is set
 if [ -n "$DATABASE_URL" ]; then
   echo "Running database migrations..."
-  npx prisma migrate deploy --schema=./packages/db/prisma/schema.prisma 2>/dev/null || true
+  npx prisma@6 migrate deploy --schema=./packages/db/prisma/schema.prisma 2>/dev/null || true
   echo "Migrations complete."
 fi
 
