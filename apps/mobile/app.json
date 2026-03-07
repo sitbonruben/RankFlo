@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "RankFlo",
+    "slug": "rankflo",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "rankflo",
+    "splash": {
+      "backgroundColor": "#000000"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "io.rankflo.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#000000"
+      },
+      "package": "io.rankflo.app"
+    },
+    "newArchEnabled": true,
+    "plugins": ["expo-router", "expo-secure-store"]
+  }
+}

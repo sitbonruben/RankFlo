@@ -1,0 +1,159 @@
+# Webhooks
+
+RankFlo webhooks deliver real-time notifications to your server when events occur. Use them to build integrations, trigger workflows, and keep external systems in sync.
+
+## Event Types
+
+Subscribe to any of the following events:
+
+| Event | Description |
+|-------|-------------|
+| `post.created` | A new post is published |
+| `post.updated` | A post is edited |
+| `post.deleted` | A post is deleted |
+| `page.created` | A new page is published |
+| `page.updated` | A page is edited |
+| `page.deleted` | A page is deleted |
+| `user.created` | A new user registers |
+| `user.updated` | A user profile is updated |
+| `comment.created` | A new comment is posted |
+| `comment.deleted` | A comment is deleted |
+| `media.uploaded` | A file is uploaded |
+| `media.deleted` | A file is deleted |
+
+## Payload Format
+
+Every webhook delivery is an HTTP `POST` request with a JSON body:
+
+```json
+{
+  "id": "evt_01abc123",
+  "type": "post.created",
+  "timestamp": "2025-01-15T10:30:00Z",
+  "data": {
+    "id": "post_01xyz",
+    "title": "Hello World",
+    "slug": "hello-world",
+    "status": "published",
+    "authorId": "user_01abc",
+    "createdAt": "2025-01-15T10:30:00Z"
+  }
+}
+```
+
+Headers included with every delivery:
+
+| Header | Description |
+|--------|-------------|
+| `Content-Type` | `application/json` |
+| `X-RankFlo-Event` | Event type (e.g. `post.created`) |
+| `X-RankFlo-Delivery` | Unique delivery ID |
+| `X-RankFlo-Signature` | HMAC-SHA256 signature |
+| `X-RankFlo-Timestamp` | Unix timestamp of the delivery |
+
+## Signature Verification
+
+Every webhook delivery is signed with your webhook secret using HMAC-SHA256. Always verify the signature to ensure the payload was sent by RankFlo and has not been tampered with.
+
+### Constructing the signed payload
+
+The signature is computed over a string composed of:
+
+```
+{timestamp}.{raw_request_body}
+```
+
+Where `timestamp` is the value of the `X-RankFlo-Timestamp` header and `raw_request_body` is the raw JSON body of the request.
+
+### Verification in Node.js
+
+```javascript
+import crypto from "node:crypto";
+
+function verifyWebhookSignature(
+  payload,
+  signature,
+  timestamp,
+  secret
+) {
+  const signedPayload = `${timestamp}.${payload}`;
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(signedPayload)
+    .digest("hex");
+
+  // Use timing-safe comparison to prevent timing attacks
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expected)
+  );
+}
+```
+
+### Verification in Python
+
+```python
+import hmac
+import hashlib
+
+def verify_webhook_signature(
+    payload: bytes,
+    signature: str,
+    timestamp: str,
+    secret: str
+) -> bool:
+    signed_payload = f"{timestamp}.{payload.decode()}"
+    expected = hmac.new(
+        secret.encode(),
+        signed_payload.encode(),
+        hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(signature, expected)
+```
+
+> Reject any delivery where the timestamp is more than 5 minutes old to prevent replay attacks.
+
+## Retry Policy
+
+If your endpoint does not return a `2xx` status code within 30 seconds, RankFlo retries the delivery with exponential backoff:
+
+| Attempt | Delay |
+|---------|-------|
+| 1st retry | 1 minute |
+| 2nd retry | 5 minutes |
+| 3rd retry | 30 minutes |
+| 4th retry | 2 hours |
+| 5th retry | 12 hours |
+
+After 5 failed retries, the delivery is marked as failed. You can manually retry failed deliveries from the RankFlo dashboard under **Settings > Webhooks > Deliveries**.
+
+## Configuring Webhooks
+
+Create and manage webhook endpoints from the dashboard:
+
+1. Navigate to **Settings > Webhooks**
+2. Click **Add endpoint**
+3. Enter your endpoint URL (must be HTTPS)
+4. Select the events you want to subscribe to
+5. Copy the generated signing secret
+
+You can also manage webhooks via the API:
+
+```bash
+curl -X POST https://api.rankflo.io/v1/webhooks \
+  -H "Authorization: Bearer bstr_live_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com/webhooks/rankflo",
+    "events": ["post.created", "post.updated", "post.deleted"]
+  }'
+```
+
+## Best Practices
+
+- **Return 200 quickly.** Process webhook payloads asynchronously. Acknowledge receipt immediately and handle the event in a background job.
+- **Verify signatures.** Always validate the `X-RankFlo-Signature` header before processing a payload.
+- **Handle duplicates.** Use the `id` field to deduplicate events. RankFlo guarantees at-least-once delivery, so the same event may arrive more than once.
+- **Use HTTPS.** Webhook endpoints must use HTTPS. Plain HTTP endpoints are rejected.
+- **Monitor failures.** Check the Webhooks dashboard regularly for failed deliveries and fix connectivity issues promptly.
+- **Protect your secret.** Store the webhook signing secret in environment variables. Rotate it periodically from the dashboard.

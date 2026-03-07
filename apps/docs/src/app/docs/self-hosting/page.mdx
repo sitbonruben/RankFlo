@@ -1,0 +1,139 @@
+# Self-Hosting
+
+Run RankFlo on your own infrastructure. This guide covers Docker Compose setup, required environment variables, and production best practices.
+
+## Docker Compose
+
+The fastest way to self-host RankFlo is with Docker Compose. Create a `docker-compose.yml` in your project root:
+
+```yaml
+version: "3.9"
+
+services:
+  web:
+    image: ghcr.io/rankflo/rankflo:latest
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: rankflo
+      POSTGRES_PASSWORD: rankflo
+      POSTGRES_DB: rankflo
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rankflo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+```
+
+Start the stack:
+
+```bash
+docker compose up -d
+```
+
+## Environment Variables
+
+These are the required and optional environment variables for a production deployment.
+
+### Required
+
+| Variable | Description |
+|----------|-------------|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `REDIS_URL` | Redis connection string |
+| `AUTH_SECRET` | Random secret for signing sessions (min 32 chars) |
+| `AUTH_URL` | Public URL of your RankFlo instance |
+
+### Optional
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3000` | HTTP server port |
+| `GITHUB_CLIENT_ID` | — | GitHub OAuth app client ID |
+| `GITHUB_CLIENT_SECRET` | — | GitHub OAuth app client secret |
+| `SMTP_HOST` | — | SMTP server for transactional email |
+| `SMTP_PORT` | `587` | SMTP port |
+| `SMTP_USER` | — | SMTP username |
+| `SMTP_PASS` | — | SMTP password |
+| `S3_BUCKET` | — | S3-compatible bucket for media uploads |
+| `S3_REGION` | `us-east-1` | S3 region |
+| `S3_ACCESS_KEY` | — | S3 access key |
+| `S3_SECRET_KEY` | — | S3 secret key |
+| `WEBHOOK_SECRET` | — | Secret for signing outbound webhooks |
+
+## Production Checklist
+
+Before going live, verify the following:
+
+- [ ] `AUTH_SECRET` is a cryptographically random string of at least 32 characters
+- [ ] PostgreSQL has connection pooling enabled (e.g. PgBouncer)
+- [ ] Redis persistence is configured (`appendonly yes`)
+- [ ] HTTPS is terminated at the reverse proxy (nginx, Caddy, or a load balancer)
+- [ ] `AUTH_URL` matches your public domain (e.g. `https://community.example.com`)
+- [ ] S3 or compatible object storage is configured for media uploads
+- [ ] Transactional email is configured (SMTP or a provider like Resend, Postmark)
+- [ ] Rate limiting is enabled at the reverse proxy level
+- [ ] Backups are scheduled for PostgreSQL
+
+## Reverse Proxy
+
+A minimal nginx configuration for proxying to RankFlo:
+
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name community.example.com;
+
+    ssl_certificate     /etc/ssl/certs/community.pem;
+    ssl_certificate_key /etc/ssl/private/community.key;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+## Updating
+
+Pull the latest image and restart the stack:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+Database migrations run automatically on startup. Check the release notes before upgrading major versions.
+
+> Always back up your database before performing an upgrade.

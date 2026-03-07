@@ -1,0 +1,20 @@
+{
+  "name": "@rankflo/ai",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@rankflo/core": "workspace:*",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@rankflo/tsconfig": "workspace:*",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,108 @@
+# Getting Started
+
+RankFlo is an open-source platform for building developer communities. This guide walks you through installing, configuring, and running RankFlo locally.
+
+## Prerequisites
+
+Before you begin, make sure you have the following installed:
+
+- **Node.js** 20.0 or later
+- **pnpm** 9.0 or later
+- **PostgreSQL** 15 or later
+- **Redis** 7 or later
+
+> You can use Docker to run PostgreSQL and Redis if you do not have them installed locally. See the [Self-Hosting](/docs/self-hosting) guide for a Docker Compose setup.
+
+## Installation
+
+Clone the repository and install dependencies:
+
+```bash
+git clone https://github.com/rankflo/rankflo.git
+cd rankflo
+pnpm install
+```
+
+## Configuration
+
+Copy the example environment file and fill in the required values:
+
+```bash
+cp .env.example .env
+```
+
+Open `.env` and configure the following:
+
+```bash
+# Database
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/rankflo"
+
+# Redis
+REDIS_URL="redis://localhost:6379"
+
+# Authentication
+AUTH_SECRET="your-random-secret-here"
+AUTH_URL="http://localhost:3000"
+
+# Optional: GitHub OAuth
+GITHUB_CLIENT_ID=""
+GITHUB_CLIENT_SECRET=""
+```
+
+### Generate the database schema
+
+Run the database migrations and seed data:
+
+```bash
+pnpm db:migrate
+pnpm db:seed
+```
+
+## Running the dev server
+
+Start all applications and packages in development mode:
+
+```bash
+pnpm dev
+```
+
+This starts:
+
+| Service | URL |
+|---------|-----|
+| Web app | `http://localhost:3000` |
+| Docs | `http://localhost:3001` |
+
+The dev server supports hot module replacement. Changes to code are reflected immediately in the browser.
+
+## Project structure
+
+The monorepo is organized as follows:
+
+```
+rankflo/
+  apps/
+    web/          # Next.js web application
+    docs/         # Documentation site (you are here)
+    mobile/       # React Native mobile app
+  packages/
+    api/          # tRPC API layer
+    auth/         # Authentication
+    core/         # Shared business logic
+    db/           # Database schema and client
+    ui/           # Shared UI components
+    sdk/          # Public SDK
+    webhooks/     # Webhook delivery
+    analytics/    # Analytics engine
+    search/       # Full-text search
+  tooling/
+    eslint/       # ESLint configurations
+    tailwind/     # Tailwind CSS presets
+    typescript/   # TypeScript configurations
+```
+
+## Next steps
+
+- [Self-Hosting](/docs/self-hosting) — Deploy RankFlo on your own infrastructure
+- [API Reference](/docs/api-reference) — Explore the REST API
+- [Webhooks](/docs/webhooks) — Subscribe to real-time events

@@ -1,0 +1,23 @@
+{
+  "name": "@rankflo/integrations",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./connectors": "./src/connectors/index.ts",
+    "./brand": "./src/brand/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@rankflo/core": "workspace:*",
+    "@rankflo/db": "workspace:*",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@rankflo/tsconfig": "workspace:*",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@rankflo/i18n",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./dictionaries/*": "./dictionaries/*"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@rankflo/tsconfig": "workspace:*",
+    "typescript": "^5.7.2"
+  }
+}

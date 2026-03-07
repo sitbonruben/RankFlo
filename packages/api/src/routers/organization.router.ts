@@ -1,0 +1,211 @@
+import { TRPCError } from "@trpc/server";
+import { z } from "zod";
+
+import {
+  createOrganizationSchema,
+  updateOrganizationSchema,
+  inviteMemberSchema,
+  createTeamSchema,
+} from "@rankflo/core/validators";
+
+import { requireRole } from "../middleware/rbac";
+import { router, protectedProcedure, orgProcedure } from "../trpc";
+
+export const organizationRouter = router({
+  create: protectedProcedure
+    .input(createOrganizationSchema)
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.organization.findUnique({
+        where: { slug: input.slug },
+      });
+
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Organization slug already taken",
+        });
+      }
+
+      const org = await ctx.db.organization.create({
+        data: {
+          name: input.name,
+          slug: input.slug,
+          memberships: {
+            create: {
+              userId: ctx.session.user.id,
+              role: "ADMIN",
+            },
+          },
+        },
+      });
+
+      return org;
+    }),
+
+  get: orgProcedure.query(async ({ ctx }) => {
+    const org = await ctx.db.organization.findUnique({
+      where: { id: ctx.organizationId },
+      include: {
+        _count: {
+          select: {
+            posts: true,
+            pages: true,
+            media: true,
+            memberships: true,
+          },
+        },
+      },
+    });
+
+    if (!org) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+
+    return org;
+  }),
+
+  update: orgProcedure
+    .use(requireRole("ADMIN"))
+    .input(updateOrganizationSchema.omit({ id: true }))
+    .mutation(async ({ ctx, input }) => {
+      const org = await ctx.db.organization.update({
+        where: { id: ctx.organizationId },
+        data: input,
+      });
+
+      return org;
+    }),
+
+  listMembers: orgProcedure.query(async ({ ctx }) => {
+    const members = await ctx.db.membership.findMany({
+      where: { organizationId: ctx.organizationId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatarUrl: true,
+          },
+        },
+        team: {
+          select: { id: true, name: true },
+        },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+
+    return members;
+  }),
+
+  inviteMember: orgProcedure
+    .use(requireRole("ADMIN"))
+    .input(inviteMemberSchema)
+    .mutation(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findUnique({
+        where: { email: input.email },
+      });
+
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "User not found. They must sign up first.",
+        });
+      }
+
+      const existing = await ctx.db.membership.findUnique({
+        where: {
+          userId_organizationId: {
+            userId: user.id,
+            organizationId: ctx.organizationId,
+          },
+        },
+      });
+
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "User is already a member",
+        });
+      }
+
+      const membership = await ctx.db.membership.create({
+        data: {
+          userId: user.id,
+          organizationId: ctx.organizationId,
+          role: input.role,
+          teamId: input.teamId,
+        },
+      });
+
+      return membership;
+    }),
+
+  removeMember: orgProcedure
+    .use(requireRole("ADMIN"))
+    .input(z.object({ userId: z.string().cuid() }))
+    .mutation(async ({ ctx, input }) => {
+      if (input.userId === ctx.session.user.id) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot remove yourself",
+        });
+      }
+
+      await ctx.db.membership.delete({
+        where: {
+          userId_organizationId: {
+            userId: input.userId,
+            organizationId: ctx.organizationId,
+          },
+        },
+      });
+
+      return { success: true };
+    }),
+
+  updateMemberRole: orgProcedure
+    .use(requireRole("ADMIN"))
+    .input(
+      z.object({
+        userId: z.string().cuid(),
+        role: z.enum(["ADMIN", "EDITOR", "AUTHOR", "VIEWER"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const membership = await ctx.db.membership.update({
+        where: {
+          userId_organizationId: {
+            userId: input.userId,
+            organizationId: ctx.organizationId,
+          },
+        },
+        data: { role: input.role },
+      });
+
+      return membership;
+    }),
+
+  // Teams
+  listTeams: orgProcedure.query(async ({ ctx }) => {
+    return ctx.db.team.findMany({
+      where: { organizationId: ctx.organizationId },
+      include: {
+        _count: { select: { memberships: true } },
+      },
+      orderBy: { name: "asc" },
+    });
+  }),
+
+  createTeam: orgProcedure
+    .use(requireRole("ADMIN"))
+    .input(createTeamSchema)
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.team.create({
+        data: {
+          ...input,
+          organizationId: ctx.organizationId,
+        },
+      });
+    }),
+});

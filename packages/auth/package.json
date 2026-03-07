@@ -1,0 +1,21 @@
+{
+  "name": "@rankflo/auth",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@rankflo/core": "workspace:*",
+    "@rankflo/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@rankflo/tsconfig": "workspace:*",
+    "typescript": "^5.7.2"
+  }
+}

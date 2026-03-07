@@ -1,0 +1,11 @@
+{
+  "name": "@rankflo/sdk",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "type-check": "tsc --noEmit", "build": "tsc" },
+  "devDependencies": {
+    "@rankflo/tsconfig": "workspace:*",
+    "typescript": "^5.7.2"
+  }
+}

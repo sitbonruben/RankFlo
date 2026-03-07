@@ -1,0 +1,36 @@
+version: "3.9"
+
+# Development overrides — run with:
+# docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+
+services:
+  postgres:
+    ports:
+      - "5432:5432"
+
+  redis:
+    ports:
+      - "6379:6379"
+
+  # Optional: Meilisearch for advanced search
+  meilisearch:
+    image: getmeili/meilisearch:latest
+    ports:
+      - "7700:7700"
+    environment:
+      MEILI_MASTER_KEY: rankflo-dev-key
+      MEILI_ENV: development
+    volumes:
+      - msdata:/meili_data
+    restart: unless-stopped
+
+  # Optional: Mailpit for local email testing
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"  # Web UI
+      - "1025:1025"  # SMTP
+    restart: unless-stopped
+
+volumes:
+  msdata:

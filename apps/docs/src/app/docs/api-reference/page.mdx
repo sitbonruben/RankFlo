@@ -1,0 +1,175 @@
+# API Reference
+
+The RankFlo REST API lets you programmatically manage posts, pages, media, and more. All endpoints return JSON and require authentication.
+
+## Authentication
+
+Authenticate using API keys. Generate a key from **Settings > API Keys** in your RankFlo dashboard.
+
+Include the key in the `Authorization` header:
+
+```bash
+curl -H "Authorization: Bearer bstr_live_abc123..." \
+  https://api.rankflo.io/v1/posts
+```
+
+API keys come in two types:
+
+| Type | Prefix | Access |
+|------|--------|--------|
+| Live | `bstr_live_` | Full read/write access |
+| Test | `bstr_test_` | Read-only, sandbox data |
+
+> Keep your API keys secret. Do not commit them to version control or expose them in client-side code.
+
+## Base URL
+
+All API requests use the following base URL:
+
+```
+https://api.rankflo.io/v1
+```
+
+For self-hosted instances, replace with your own domain:
+
+```
+https://your-domain.com/api/v1
+```
+
+## Endpoints
+
+### Posts
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/posts` | List all posts |
+| `GET` | `/v1/posts/:id` | Get a single post |
+| `POST` | `/v1/posts` | Create a post |
+| `PATCH` | `/v1/posts/:id` | Update a post |
+| `DELETE` | `/v1/posts/:id` | Delete a post |
+
+**Example: Create a post**
+
+```bash
+curl -X POST https://api.rankflo.io/v1/posts \
+  -H "Authorization: Bearer bstr_live_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Hello World",
+    "content": "This is my first post.",
+    "status": "published"
+  }'
+```
+
+**Response:**
+
+```json
+{
+  "id": "post_01abc",
+  "title": "Hello World",
+  "slug": "hello-world",
+  "content": "This is my first post.",
+  "status": "published",
+  "authorId": "user_01xyz",
+  "createdAt": "2025-01-15T10:00:00Z",
+  "updatedAt": "2025-01-15T10:00:00Z"
+}
+```
+
+### Pages
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/pages` | List all pages |
+| `GET` | `/v1/pages/:id` | Get a single page |
+| `POST` | `/v1/pages` | Create a page |
+| `PATCH` | `/v1/pages/:id` | Update a page |
+| `DELETE` | `/v1/pages/:id` | Delete a page |
+
+### Media
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/media` | List uploaded media |
+| `POST` | `/v1/media/upload` | Upload a file |
+| `DELETE` | `/v1/media/:id` | Delete a file |
+
+**Upload limit:** 50 MB per file. Supported formats: JPEG, PNG, WebP, GIF, SVG, MP4, PDF.
+
+### Search
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/search` | Full-text search across posts and pages |
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `q` | `string` | Search query (required) |
+| `type` | `string` | Filter by `post` or `page` |
+| `limit` | `number` | Results per page (default 20, max 100) |
+| `offset` | `number` | Pagination offset |
+
+### Analytics
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/v1/analytics/overview` | Site-wide analytics summary |
+| `GET` | `/v1/analytics/posts/:id` | Analytics for a single post |
+
+## Pagination
+
+List endpoints support cursor-based pagination:
+
+```bash
+GET /v1/posts?limit=10&cursor=post_01abc
+```
+
+The response includes a `nextCursor` field. Pass it as `cursor` in the next request to retrieve the following page. When `nextCursor` is `null`, you have reached the end.
+
+```json
+{
+  "data": [...],
+  "nextCursor": "post_01xyz",
+  "hasMore": true
+}
+```
+
+## Rate Limits
+
+API requests are rate-limited to protect the platform:
+
+| Plan | Requests per minute |
+|------|-------------------|
+| Free | 60 |
+| Pro | 300 |
+| Enterprise | 1,000 |
+
+When rate-limited, the API returns a `429 Too Many Requests` response with a `Retry-After` header indicating seconds until the limit resets.
+
+## Error Handling
+
+The API uses standard HTTP status codes. Error responses include a JSON body:
+
+```json
+{
+  "error": {
+    "code": "not_found",
+    "message": "The requested post does not exist.",
+    "status": 404
+  }
+}
+```
+
+**Common error codes:**
+
+| Status | Code | Description |
+|--------|------|-------------|
+| `400` | `bad_request` | Invalid request body or parameters |
+| `401` | `unauthorized` | Missing or invalid API key |
+| `403` | `forbidden` | Insufficient permissions |
+| `404` | `not_found` | Resource does not exist |
+| `409` | `conflict` | Resource already exists (e.g. duplicate slug) |
+| `429` | `rate_limited` | Too many requests |
+| `500` | `internal_error` | Server error |

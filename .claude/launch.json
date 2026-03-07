@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@rankflo/web", "dev"],
+      "port": 3000
+    },
+    {
+      "name": "docs",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@rankflo/docs", "dev"],
+      "port": 3001
+    },
+    {
+      "name": "mobile",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@rankflo/mobile", "dev"],
+      "port": 8081
+    },
+    {
+      "name": "db-studio",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@rankflo/db", "studio"],
+      "port": 5555
+    }
+  ]
+}

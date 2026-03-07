@@ -1,0 +1,841 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── IDENTITY & ACCESS ──────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  name          String?
+  avatarUrl     String?
+  locale        String    @default("en")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  sessions           Session[]
+  oauthAccounts      OAuthAccount[]
+  memberships        Membership[]
+  posts              Post[]
+  mediaUploads       Media[]
+  apiKeys            ApiKey[]
+  auditLogs          AuditLog[]
+  calendarAssignments CalendarEntry[] @relation("CalendarAssignee")
+
+  @@index([email])
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@map("sessions")
+}
+
+model OAuthAccount {
+  id                String    @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  accessToken       String?
+  refreshToken      String?
+  expiresAt         DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("oauth_accounts")
+}
+
+// ─── ORGANIZATIONS ──────────────────────────────────────────
+
+model Organization {
+  id           String    @id @default(cuid())
+  name         String
+  slug         String    @unique
+  logoUrl      String?
+  plan         Plan      @default(FREE)
+  customDomain String?   @unique
+  subdomain    String?   @unique
+  settings     Json      @default("{}")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  memberships      Membership[]
+  teams            Team[]
+  posts            Post[]
+  pages            Page[]
+  media            Media[]
+  webhooks         Webhook[]
+  apiKeys          ApiKey[]
+  searchIndexes    SearchIndex[]
+  auditLogs        AuditLog[]
+  projects         Project[]
+  subscribers      Subscriber[]
+  conversionGoals  ConversionGoal[]
+  socialAccounts   SocialAccount[]
+  calendarEntries  CalendarEntry[]
+  utmLinks         UtmLink[]
+
+  @@index([slug])
+  @@index([customDomain])
+  @@index([subdomain])
+  @@map("organizations")
+}
+
+model Team {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships  Membership[]
+
+  @@unique([organizationId, name])
+  @@map("teams")
+}
+
+model Membership {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  teamId         String?
+  role           Role     @default(VIEWER)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  team         Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, organizationId])
+  @@map("memberships")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  AUTHOR
+  VIEWER
+}
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+// ─── CONTENT ────────────────────────────────────────────────
+
+model Post {
+  id             String     @id @default(cuid())
+  organizationId String
+  projectId      String?
+  authorId       String
+  slug           String
+  status         PostStatus @default(DRAFT)
+  publishedAt    DateTime?
+  scheduledAt    DateTime?
+  title          String
+  excerpt        String?
+  content        Json
+  contentHtml    String?
+  contentPlain   String?
+  featuredImage  String?
+  locale         String     @default("en")
+  readingTime    Int?
+  version        Int        @default(1)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  deletedAt      DateTime?
+
+  organization    Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author          User            @relation(fields: [authorId], references: [id])
+  project         Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  revisions       PostRevision[]
+  tags            PostTag[]
+  seoMeta         SeoMeta?
+  comments        Comment[]
+  deployments     Deployment[]
+  socialPosts     SocialPost[]
+  calendarEntries CalendarEntry[]
+
+  @@unique([organizationId, slug, locale])
+  @@index([organizationId, status, publishedAt(sort: Desc)])
+  @@index([organizationId, authorId])
+  @@index([scheduledAt])
+  @@map("posts")
+}
+
+model PostRevision {
+  id        String   @id @default(cuid())
+  postId    String
+  version   Int
+  title     String
+  content   Json
+  editedBy  String
+  createdAt DateTime @default(now())
+  changelog String?
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, version])
+  @@index([postId])
+  @@map("post_revisions")
+}
+
+enum PostStatus {
+  DRAFT
+  REVIEW
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+model Tag {
+  id             String  @id @default(cuid())
+  organizationId String?
+  name           String
+  slug           String
+  color          String?
+
+  posts PostTag[]
+
+  @@unique([organizationId, slug])
+  @@map("tags")
+}
+
+model PostTag {
+  postId String
+  tagId  String
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@map("post_tags")
+}
+
+model Page {
+  id             String     @id @default(cuid())
+  organizationId String
+  slug           String
+  title          String
+  content        Json
+  contentHtml    String?
+  status         PostStatus @default(DRAFT)
+  locale         String     @default("en")
+  parentId       String?
+  sortOrder      Int        @default(0)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       Page?        @relation("PageHierarchy", fields: [parentId], references: [id])
+  children     Page[]       @relation("PageHierarchy")
+  seoMeta      SeoMeta?
+
+  @@unique([organizationId, slug, locale])
+  @@map("pages")
+}
+
+model Comment {
+  id       String        @id @default(cuid())
+  postId   String
+  authorId String?
+  parentId String?
+  body     String
+  status   CommentStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  post    Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentThread", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentThread")
+
+  @@index([postId, status])
+  @@map("comments")
+}
+
+enum CommentStatus {
+  PENDING
+  APPROVED
+  SPAM
+  DELETED
+}
+
+// ─── MEDIA ──────────────────────────────────────────────────
+
+model Media {
+  id             String   @id @default(cuid())
+  organizationId String
+  uploadedBy     String
+  fileName       String
+  fileSize       Int
+  mimeType       String
+  url            String
+  thumbnailUrl   String?
+  altText        String?
+  width          Int?
+  height         Int?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploader     User         @relation(fields: [uploadedBy], references: [id])
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("media")
+}
+
+// ─── SEO ────────────────────────────────────────────────────
+
+model SeoMeta {
+  id              String  @id @default(cuid())
+  postId          String? @unique
+  pageId          String? @unique
+  metaTitle       String?
+  metaDescription String?
+  canonicalUrl    String?
+  ogImage         String?
+  ogTitle         String?
+  ogDescription   String?
+  twitterCard     String? @default("summary_large_image")
+  structuredData  Json?
+  noIndex         Boolean @default(false)
+  noFollow        Boolean @default(false)
+  keywords        String[]
+
+  post Post? @relation(fields: [postId], references: [id], onDelete: Cascade)
+  page Page? @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@map("seo_meta")
+}
+
+// ─── ANALYTICS ──────────────────────────────────────────────
+
+model AnalyticsEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  sessionId      String
+  visitorId      String
+  eventType      String
+  path           String?
+  referrer       String?
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  utmTerm        String?
+  utmContent     String?
+  country        String?
+  city           String?
+  device         String?
+  browser        String?
+  os             String?
+  duration       Int?
+  properties     Json?
+  timestamp      DateTime @default(now())
+
+  @@index([organizationId, timestamp(sort: Desc)])
+  @@index([organizationId, eventType, timestamp(sort: Desc)])
+  @@index([organizationId, path])
+  @@index([sessionId])
+  @@map("analytics_events")
+}
+
+model SearchQuery {
+  id             String   @id @default(cuid())
+  organizationId String
+  query          String
+  resultsCount   Int
+  clickedPostId  String?
+  clickPosition  Int?
+  visitorId      String
+  timestamp      DateTime @default(now())
+
+  @@index([organizationId, timestamp(sort: Desc)])
+  @@index([organizationId, query])
+  @@map("search_queries")
+}
+
+// ─── SEARCH ─────────────────────────────────────────────────
+
+model SearchIndex {
+  id             String   @id @default(cuid())
+  organizationId String
+  entityType     String
+  entityId       String
+  title          String
+  body           String
+  tags           String[]
+  locale         String   @default("en")
+  boostScore     Float    @default(1.0)
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, entityType, entityId])
+  @@index([organizationId])
+  @@map("search_indexes")
+}
+
+// ─── WEBHOOKS ───────────────────────────────────────────────
+
+model Webhook {
+  id             String   @id @default(cuid())
+  organizationId String
+  url            String
+  secret         String
+  events         String[]
+  isActive       Boolean  @default(true)
+  description    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@index([organizationId])
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id           String         @id @default(cuid())
+  webhookId    String
+  event        String
+  payload      Json
+  statusCode   Int?
+  responseBody String?
+  status       DeliveryStatus @default(PENDING)
+  attempts     Int            @default(0)
+  nextRetryAt  DateTime?
+  createdAt    DateTime       @default(now())
+  completedAt  DateTime?
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId, status])
+  @@index([status, nextRetryAt])
+  @@map("webhook_deliveries")
+}
+
+enum DeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  RETRYING
+  DEAD
+}
+
+// ─── API KEYS ───────────────────────────────────────────────
+
+model ApiKey {
+  id             String    @id @default(cuid())
+  organizationId String
+  userId         String
+  name           String
+  keyHash        String    @unique
+  keyPrefix      String
+  scopes         String[]
+  expiresAt      DateTime?
+  lastUsedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  revokedAt      DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@index([keyHash])
+  @@index([organizationId])
+  @@map("api_keys")
+}
+
+// ─── SUBSCRIBERS & LEADS ────────────────────────────────
+
+model Subscriber {
+  id             String           @id @default(cuid())
+  organizationId String
+  projectId      String?
+  email          String
+  name           String?
+  status         SubscriberStatus @default(ACTIVE)
+  source         String?          // e.g. "newsletter-cta", "popup", "landing-page"
+  sourcePostId   String?          // which post they subscribed from
+  referrer       String?
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  tags           String[]
+  metadata       Json?
+  subscribedAt   DateTime         @default(now())
+  unsubscribedAt DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  project      Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, email])
+  @@index([organizationId, status])
+  @@index([organizationId, subscribedAt(sort: Desc)])
+  @@index([organizationId, source])
+  @@map("subscribers")
+}
+
+enum SubscriberStatus {
+  ACTIVE
+  UNSUBSCRIBED
+  BOUNCED
+}
+
+// ─── CONVERSION GOALS & TRACKING ────────────────────────
+
+model ConversionGoal {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  eventType      String   // e.g. "subscribe", "cta_click", "page_view", "custom"
+  targetValue    Int?     // optional target count
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversions  ConversionEvent[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, isActive])
+  @@map("conversion_goals")
+}
+
+model ConversionEvent {
+  id             String   @id @default(cuid())
+  organizationId String
+  goalId         String
+  visitorId      String?
+  sessionId      String?
+  postId         String?
+  path           String?
+  referrer       String?
+  utmSource      String?
+  utmMedium      String?
+  utmCampaign    String?
+  value          Float?   // monetary or custom value
+  metadata       Json?
+  timestamp      DateTime @default(now())
+
+  goal ConversionGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, timestamp(sort: Desc)])
+  @@index([goalId, timestamp(sort: Desc)])
+  @@index([organizationId, postId])
+  @@map("conversion_events")
+}
+
+// ─── SOCIAL MEDIA ACCOUNTS & POSTS ──────────────────────
+
+model SocialAccount {
+  id             String         @id @default(cuid())
+  organizationId String
+  platform       SocialPlatform
+  accountName    String
+  accountId      String?        // platform-specific user ID
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  avatarUrl      String?
+  isActive       Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  socialPosts  SocialPost[]
+
+  @@unique([organizationId, platform, accountName])
+  @@index([organizationId])
+  @@map("social_accounts")
+}
+
+enum SocialPlatform {
+  TWITTER
+  LINKEDIN
+  FACEBOOK
+  INSTAGRAM
+  THREADS
+  BLUESKY
+  MASTODON
+}
+
+model SocialPost {
+  id              String           @id @default(cuid())
+  organizationId  String
+  socialAccountId String
+  postId          String?          // linked blog post
+  content         String
+  mediaUrls       String[]
+  status          SocialPostStatus @default(DRAFT)
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  externalId      String?          // ID on the social platform
+  externalUrl     String?          // URL on the social platform
+  metrics         Json?            // likes, shares, impressions, etc.
+  error           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  socialAccount SocialAccount @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  post          Post?         @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, status])
+  @@index([organizationId, scheduledAt])
+  @@index([socialAccountId])
+  @@map("social_posts")
+}
+
+enum SocialPostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}
+
+// ─── CONTENT CALENDAR ───────────────────────────────────
+
+model CalendarEntry {
+  id             String             @id @default(cuid())
+  organizationId String
+  title          String
+  description    String?
+  entryType      CalendarEntryType  @default(BLOG_POST)
+  status         CalendarEntryStatus @default(IDEA)
+  postId         String?            // linked to published post
+  assigneeId     String?
+  color          String?
+  scheduledDate  DateTime?
+  dueDate        DateTime?
+  tags           String[]
+  metadata       Json?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignee     User?        @relation("CalendarAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  post         Post?        @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, scheduledDate])
+  @@index([organizationId, status])
+  @@index([assigneeId])
+  @@map("calendar_entries")
+}
+
+enum CalendarEntryType {
+  BLOG_POST
+  SOCIAL_POST
+  EMAIL_CAMPAIGN
+  LANDING_PAGE
+  VIDEO
+  PODCAST
+  WEBINAR
+  OTHER
+}
+
+enum CalendarEntryStatus {
+  IDEA
+  PLANNED
+  IN_PROGRESS
+  IN_REVIEW
+  APPROVED
+  PUBLISHED
+  CANCELLED
+}
+
+// ─── UTM LINKS ──────────────────────────────────────────
+
+model UtmLink {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  baseUrl        String
+  utmSource      String
+  utmMedium      String
+  utmCampaign    String
+  utmTerm        String?
+  utmContent     String?
+  shortCode      String?  @unique
+  clicks         Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([shortCode])
+  @@map("utm_links")
+}
+
+// ─── AUDIT LOG ──────────────────────────────────────────────
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  action         String
+  entityType     String?
+  entityId       String?
+  metadata       Json?
+  ipAddress      String?
+  timestamp      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id])
+
+  @@index([organizationId, timestamp(sort: Desc)])
+  @@index([organizationId, action])
+  @@map("audit_logs")
+}
+
+// ─── PROJECT ENUMS ─────────────────────────────────────────
+
+enum Platform {
+  NEXTJS
+  REACT
+  VUE
+  ANGULAR
+  SVELTE
+  SHOPIFY
+  WIX
+  WORDPRESS
+  SQUARESPACE
+  WEBFLOW
+  HUGO
+  GATSBY
+  ASTRO
+  REMIX
+  NUXT
+  CUSTOM
+}
+
+enum ProjectStatus {
+  SETUP
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum IntegrationType {
+  GITHUB
+  GITLAB
+  BITBUCKET
+  SHOPIFY_API
+  WIX_API
+  WORDPRESS_API
+  WEBFLOW_API
+  REST_API
+  GRAPHQL_API
+  SDK
+}
+
+enum ContentFormat {
+  MARKDOWN
+  MDX
+  HTML
+  JSON
+}
+
+enum DeploymentStatus {
+  PENDING
+  DEPLOYING
+  SUCCESS
+  FAILED
+}
+
+// ─── PROJECTS & INTEGRATIONS ──────────────────────────────
+
+model Project {
+  id              String        @id @default(cuid())
+  organizationId  String
+  name            String
+  description     String?
+  url             String?
+  platform        Platform      @default(CUSTOM)
+  status          ProjectStatus @default(SETUP)
+
+  // Branding
+  brandColors     Json?
+  brandFonts      Json?
+  brandLogo       String?
+  brandStyle      Json?
+
+  // Integration
+  integrationType IntegrationType?
+  integrationConfig Json?
+
+  // Content settings
+  contentDir      String?
+  contentFormat   ContentFormat @default(MARKDOWN)
+  apiKey          String?       @unique
+
+  // Stats (denormalized)
+  postCount       Int           @default(0)
+  totalViews      Int           @default(0)
+  lastDeployedAt  DateTime?
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  posts        Post[]
+  deployments  Deployment[]
+  subscribers  Subscriber[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId, status])
+  @@index([apiKey])
+  @@map("projects")
+}
+
+model Deployment {
+  id           String           @id @default(cuid())
+  projectId    String
+  postId       String?
+  status       DeploymentStatus @default(PENDING)
+  deployedAt   DateTime?
+  commitSha    String?
+  commitUrl    String?
+  deployUrl    String?
+  error        String?
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  post    Post?   @relation(fields: [postId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([postId])
+  @@map("deployments")
+}
