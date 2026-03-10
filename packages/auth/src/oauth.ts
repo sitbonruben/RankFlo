@@ -54,16 +54,57 @@ export async function handleOAuthCallback(
     if (existingUser) {
       userId = existingUser.id;
     } else {
-      // Create new user
-      const newUser = await db.user.create({
-        data: {
-          email: profile.email,
-          name: profile.name,
-          avatarUrl: profile.avatarUrl,
-          emailVerified: new Date(),
-        },
+      // Create new user + personal organization + admin membership
+      const displayName = profile.name ?? profile.email.split("@")[0] ?? "user";
+      const baseSlug = displayName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 32) || "org";
+      const slug = `${baseSlug}-${Math.random().toString(36).slice(2, 7)}`;
+      const freeCredits = 10;
+
+      const created = await db.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            email: profile.email,
+            name: profile.name,
+            avatarUrl: profile.avatarUrl,
+            emailVerified: new Date(),
+          },
+        });
+
+        const org = await tx.organization.create({
+          data: {
+            name: `${displayName}'s workspace`,
+            slug,
+            plan: "FREE",
+            aiCreditsBalance: freeCredits,
+          },
+        });
+
+        await tx.membership.create({
+          data: {
+            userId: newUser.id,
+            organizationId: org.id,
+            role: "ADMIN",
+          },
+        });
+
+        await tx.creditLedger.create({
+          data: {
+            organizationId: org.id,
+            type: "MONTHLY_GRANT",
+            amount: freeCredits,
+            balance: freeCredits,
+            description: `Free plan starting credits (${freeCredits})`,
+          },
+        });
+
+        return newUser;
       });
-      userId = newUser.id;
+
+      userId = created.id;
       isNewUser = true;
     }
 

@@ -12,6 +12,8 @@ import {
   slugify,
 } from "@rankflo/ai";
 import type { AIConfig, BrandVoice } from "@rankflo/ai";
+import { checkAndDeductCredits } from "../lib/credits";
+import { CREDIT_COSTS } from "@rankflo/core/constants";
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -77,6 +79,9 @@ export const growthRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const config = requireAIConfig();
+
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.scan, "scan");
+
       const url = input.url;
       const projectName =
         input.projectName || new URL(url).hostname.replace("www.", "");
@@ -172,6 +177,8 @@ export const growthRouter = router({
     )
     .query(async ({ ctx, input }) => {
       const config = requireAIConfig();
+
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.research, "research");
 
       const project = await ctx.db.project.findFirst({
         where: { id: input.projectId, organizationId: ctx.organizationId },
@@ -297,6 +304,8 @@ export const growthRouter = router({
     .mutation(async ({ ctx, input }) => {
       const config = requireAIConfig();
 
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.strategy, "strategy");
+
       const project = await ctx.db.project.findFirst({
         where: { id: input.projectId, organizationId: ctx.organizationId },
       });
@@ -346,6 +355,8 @@ export const growthRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const config = requireAIConfig();
+
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.quickGenerate, "quickGenerate");
 
       const project = await ctx.db.project.findFirst({
         where: { id: input.projectId, organizationId: ctx.organizationId },

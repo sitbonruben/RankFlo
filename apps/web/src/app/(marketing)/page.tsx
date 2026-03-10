@@ -40,7 +40,7 @@ export default function HomePage() {
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[800px] rounded-full bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.07)_0%,transparent_70%)]" />
         </div>
 
-        <div className="relative mx-auto max-w-ultrawide px-6">
+        <div className="relative mx-auto max-w-wide px-6">
           <div className="grid min-h-[85vh] grid-cols-1 items-center gap-12 lg:grid-cols-12">
             {/* Left: headline */}
             <div className="lg:col-span-7 xl:col-span-6">

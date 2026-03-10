@@ -30,9 +30,9 @@ export async function GET(req: NextRequest) {
       ? authHeader.slice(7)
       : queryKey;
 
-    if (!apiKey || !apiKey.startsWith("blg_")) {
+    if (!apiKey) {
       return NextResponse.json(
-        { error: "Missing or invalid API key. Provide a Bearer token or project_key query param." },
+        { error: "Missing API key. Provide Authorization: Bearer rf_xxx or ?project_key=rf_xxx" },
         { status: 401 }
       );
     }

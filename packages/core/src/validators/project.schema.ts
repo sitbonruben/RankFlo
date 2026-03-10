@@ -88,7 +88,7 @@ export const createProjectSchema = z.object({
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
 
 export const updateProjectSchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().min(1),
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(500).nullable().optional(),
   url: z.string().url().nullable().optional(),
@@ -116,23 +116,23 @@ export const listProjectsSchema = z.object({
 export type ListProjectsInput = z.infer<typeof listProjectsSchema>;
 
 export const getProjectSchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().min(1),
 });
 export type GetProjectInput = z.infer<typeof getProjectSchema>;
 
 export const deleteProjectSchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().min(1),
 });
 export type DeleteProjectInput = z.infer<typeof deleteProjectSchema>;
 
 export const deployToProjectSchema = z.object({
-  projectId: z.string().cuid(),
-  postIds: z.array(z.string().cuid()).min(1).max(50),
+  projectId: z.string().min(1),
+  postIds: z.array(z.string().min(1)).min(1).max(50),
 });
 export type DeployToProjectInput = z.infer<typeof deployToProjectSchema>;
 
 export const listDeploymentsSchema = z.object({
-  projectId: z.string().cuid(),
+  projectId: z.string().min(1),
   page: z.number().int().positive().default(1),
   pageSize: z.number().int().positive().max(50).default(20),
 });

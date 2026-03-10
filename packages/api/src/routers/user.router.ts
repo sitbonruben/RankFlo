@@ -12,8 +12,20 @@ import {
   createSession,
   invalidateSession,
 } from "@rankflo/auth";
+import { PLAN_MONTHLY_CREDITS } from "@rankflo/core/constants";
 
 import { router, publicProcedure, protectedProcedure } from "../trpc";
+
+/** Turn a name/email into a URL-safe slug with a random suffix to avoid collisions */
+function makeSlug(name: string): string {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 32) || "org";
+  const suffix = Math.random().toString(36).slice(2, 7);
+  return `${base}-${suffix}`;
+}
 
 export const userRouter = router({
   signUp: publicProcedure
@@ -30,12 +42,49 @@ export const userRouter = router({
         });
       }
 
-      const user = await ctx.db.user.create({
-        data: {
-          email: input.email,
-          name: input.name,
-          passwordHash: hashPassword(input.password),
-        },
+      // Create user + personal organization + admin membership in one transaction
+      const freeCredits = PLAN_MONTHLY_CREDITS["FREE"] ?? 10;
+      const orgName = `${input.name}'s workspace`;
+      const slug = makeSlug(input.name);
+
+      const user = await ctx.db.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            email: input.email,
+            name: input.name,
+            passwordHash: hashPassword(input.password),
+          },
+        });
+
+        const org = await tx.organization.create({
+          data: {
+            name: orgName,
+            slug,
+            plan: "FREE",
+            aiCreditsBalance: freeCredits,
+          },
+        });
+
+        await tx.membership.create({
+          data: {
+            userId: newUser.id,
+            organizationId: org.id,
+            role: "ADMIN",
+          },
+        });
+
+        // Seed the credit ledger with the initial free grant
+        await tx.creditLedger.create({
+          data: {
+            organizationId: org.id,
+            type: "MONTHLY_GRANT",
+            amount: freeCredits,
+            balance: freeCredits,
+            description: `Free plan starting credits (${freeCredits})`,
+          },
+        });
+
+        return newUser;
       });
 
       const ipAddress = ctx.headers.get("x-forwarded-for") ?? undefined;

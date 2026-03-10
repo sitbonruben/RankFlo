@@ -168,6 +168,43 @@ export const projectRouter = router({
       return project;
     }),
 
+  // ─── UPDATE AUTOPILOT ────────────────────────────────────
+  updateAutopilot: orgProcedure
+    .input(
+      z.object({
+        id: z.string().cuid(),
+        autopilotEnabled: z.boolean(),
+        autopilotFrequency: z.number().int().min(1).max(7).default(2),
+        autopilotContentType: z.enum(["blog-post", "tutorial", "how-to", "listicle", "comparison", "landing-page"]).default("blog-post"),
+        autopilotAutoPublish: z.boolean().default(false),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { id, ...autopilot } = input;
+
+      const existing = await ctx.db.project.findFirst({
+        where: { id, organizationId: ctx.organizationId },
+      });
+
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      }
+
+      // If enabling and no next run time set, schedule it immediately
+      const autopilotNextRunAt =
+        autopilot.autopilotEnabled && !existing.autopilotNextRunAt
+          ? new Date() // due immediately so cron picks it up on next tick
+          : undefined;
+
+      return ctx.db.project.update({
+        where: { id },
+        data: {
+          ...autopilot,
+          ...(autopilotNextRunAt ? { autopilotNextRunAt } : {}),
+        },
+      });
+    }),
+
   // ─── DELETE PROJECT ──────────────────────────────────────
   delete: orgProcedure
     .input(deleteProjectSchema)

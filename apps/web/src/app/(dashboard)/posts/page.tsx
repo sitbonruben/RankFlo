@@ -1,8 +1,41 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { trpc } from "@/trpc/client";
+
+type StatusFilter = "All" | "PUBLISHED" | "DRAFT" | "SCHEDULED" | "ARCHIVED";
+
+function timeAgo(date: Date | string): string {
+  const d = new Date(date);
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return mins <= 1 ? "Just now" : `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  PUBLISHED: "Published",
+  DRAFT: "Draft",
+  SCHEDULED: "Scheduled",
+  ARCHIVED: "Archived",
+};
 
 export default function PostsPage() {
+  const [filter, setFilter] = useState<StatusFilter>("All");
+
+  const { data, isLoading } = trpc.post.list.useQuery({
+    page: 1,
+    pageSize: 50,
+    sort: "newest",
+    status: filter === "All" ? undefined : (filter as any),
+  });
+
+  const posts = data?.items ?? [];
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
@@ -24,103 +57,105 @@ export default function PostsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3">
-        {["All", "Published", "Draft", "Scheduled", "Archived"].map((filter) => (
+      <div className="flex items-center gap-2 flex-wrap">
+        {(["All", "PUBLISHED", "DRAFT", "SCHEDULED", "ARCHIVED"] as StatusFilter[]).map((f) => (
           <button
-            key={filter}
+            key={f}
+            onClick={() => setFilter(f)}
             className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-              filter === "All"
+              filter === f
                 ? "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white"
                 : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
             }`}
           >
-            {filter}
+            {f === "All" ? "All" : STATUS_LABELS[f]}
           </button>
         ))}
       </div>
 
       {/* Posts table */}
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden dark:border-gray-800 dark:bg-gray-950">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-200 dark:border-gray-800">
-              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Title
-              </th>
-              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Status
-              </th>
-              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Author
-              </th>
-              <th className="hidden px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 lg:table-cell">
-                Updated
-              </th>
-              <th className="hidden px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 xl:table-cell">
-                Views
-              </th>
-              <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                SEO
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800/50">
-            {[
-              { title: "Welcome to RankFlo", slug: "welcome-to-rankflo", status: "Published", author: "Admin", updated: "2 hours ago", views: "1,234", seo: 94 },
-              { title: "Getting Started with the API", slug: "getting-started-api", status: "Published", author: "Admin", updated: "1 day ago", views: "567", seo: 87 },
-              { title: "Self-Hosting Guide", slug: "self-hosting-guide", status: "Draft", author: "Admin", updated: "3 days ago", views: "—", seo: 62 },
-            ].map((post) => (
-              <tr
-                key={post.slug}
-                className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50"
-              >
-                <td className="px-5 py-4">
-                  <Link
-                    href={`/posts/${post.slug}/edit`}
-                    className="text-sm font-medium text-gray-900 hover:text-green-600 dark:text-white dark:hover:text-accent"
-                  >
-                    {post.title}
-                  </Link>
-                  <p className="text-xs text-gray-400 dark:text-gray-600">/{post.slug}</p>
-                </td>
-                <td className="px-5 py-4">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium ${
-                      post.status === "Published"
-                        ? "bg-green-50 text-green-700 border border-green-200 dark:bg-accent-1 dark:text-accent dark:border-accent/20"
-                        : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                    }`}
-                  >
-                    <span
-                      className={`h-1.5 w-1.5 rounded-full ${
-                        post.status === "Published" ? "bg-green-500 dark:bg-accent" : "bg-gray-400 dark:bg-gray-600"
-                      }`}
-                    />
-                    {post.status}
-                  </span>
-                </td>
-                <td className="px-5 py-4">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">{post.author}</span>
-                </td>
-                <td className="hidden px-5 py-4 lg:table-cell">
-                  <span className="text-sm text-gray-400 dark:text-gray-600">{post.updated}</span>
-                </td>
-                <td className="hidden px-5 py-4 text-right xl:table-cell">
-                  <span className="text-sm text-gray-500 dark:text-gray-400">{post.views}</span>
-                </td>
-                <td className="px-5 py-4 text-right">
-                  <span
-                    className={`text-sm font-medium ${
-                      post.seo >= 80 ? "text-green-600 dark:text-accent" : post.seo >= 50 ? "text-amber-500 dark:text-warning" : "text-red-500 dark:text-error"
-                    }`}
-                  >
-                    {post.seo}
-                  </span>
-                </td>
-              </tr>
+        {isLoading ? (
+          <div className="divide-y divide-gray-100 dark:divide-gray-800/50">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex items-center gap-4 px-5 py-4">
+                <div className="h-4 w-64 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+                <div className="h-4 w-20 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+                <div className="h-4 w-24 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-900">
+              <svg className="h-6 w-6 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+            </div>
+            <h3 className="mt-4 text-sm font-medium text-gray-900 dark:text-white">No posts yet</h3>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-600">
+              {filter !== "All" ? `No ${STATUS_LABELS[filter]?.toLowerCase()} posts` : "Create your first post to get started"}
+            </p>
+            {filter === "All" && (
+              <Link
+                href="/posts/new"
+                className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-700 dark:bg-accent dark:text-black dark:hover:bg-accent-9"
+              >
+                Create first post
+              </Link>
+            )}
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-gray-800">
+                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Title</th>
+                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Author</th>
+                <th className="hidden px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 lg:table-cell">Updated</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100 dark:divide-gray-800/50">
+              {posts.map((post) => (
+                <tr key={post.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                  <td className="px-5 py-4">
+                    <Link
+                      href={`/posts/${post.slug}/edit`}
+                      className="text-sm font-medium text-gray-900 hover:text-green-600 dark:text-white dark:hover:text-accent"
+                    >
+                      {post.title || "Untitled"}
+                    </Link>
+                    <p className="text-xs text-gray-400 dark:text-gray-600">/{post.slug}</p>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium ${
+                        post.status === "PUBLISHED"
+                          ? "bg-green-50 text-green-700 border border-green-200 dark:bg-accent-1 dark:text-accent dark:border-accent/20"
+                          : post.status === "SCHEDULED"
+                          ? "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-400/10 dark:text-blue-400 dark:border-blue-400/20"
+                          : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                      }`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${
+                        post.status === "PUBLISHED" ? "bg-green-500 dark:bg-accent"
+                        : post.status === "SCHEDULED" ? "bg-blue-400"
+                        : "bg-gray-400 dark:bg-gray-600"
+                      }`} />
+                      {STATUS_LABELS[post.status] ?? post.status}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4">
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{post.author?.name ?? "—"}</span>
+                  </td>
+                  <td className="hidden px-5 py-4 lg:table-cell">
+                    <span className="text-sm text-gray-400 dark:text-gray-600">{timeAgo(post.updatedAt)}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

@@ -207,15 +207,22 @@ export const useEditorStore = create<EditorState>()(
         }),
 
       // Hydrate
-      hydrate: (data) =>
-        set({
+      hydrate: (data) => {
+        // Validate content is a proper EditorDocument (has blocks array).
+        // Posts seeded/imported with Tiptap JSONB format won't have blocks, so
+        // we fall back to an empty document rather than crashing.
+        const isValidDoc =
+          data.content &&
+          typeof data.content === "object" &&
+          Array.isArray((data.content as EditorDocument).blocks);
+        return set({
           postId: data.postId,
           title: data.title,
           slug: data.slug,
           excerpt: data.excerpt || "",
           featuredImage: data.featuredImage || "",
           status: data.status,
-          document: data.content || createEmptyDocument(),
+          document: isValidDoc ? data.content : createEmptyDocument(),
           tagIds: data.tagIds || [],
           locale: data.locale || "en",
           metaTitle: data.metaTitle || "",
@@ -224,7 +231,8 @@ export const useEditorStore = create<EditorState>()(
           isDirty: false,
           selectedBlockId: null,
           hoveredBlockId: null,
-        }),
+        });
+      },
 
       // Reset
       reset: () => set(initialState),

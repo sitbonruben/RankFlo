@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useRef, useEffect } from "react";
 import { CommandPalette } from "@/components/command-palette";
+import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { trpc } from "@/trpc/client";
 
 interface NavItem {
   href: string;
@@ -46,7 +48,6 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: "Distribution",
     items: [
-      { href: "/social", label: "Social Media", icon: "M7.217 10.907a2.25 2.25 0 100 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186l9.566-5.314m-9.566 7.5l9.566 5.314m0 0a2.25 2.25 0 103.935 2.186 2.25 2.25 0 00-3.935-2.186zm0-12.814a2.25 2.25 0 103.933-2.185 2.25 2.25 0 00-3.933 2.185z" },
       { href: "/calendar", label: "Calendar", icon: "M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" },
       { href: "/utm", label: "UTM Builder", icon: "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" },
     ],
@@ -63,6 +64,100 @@ function SidebarIcon({ path }: { path: string }) {
   );
 }
 
+function UserMenu() {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const { data: me } = trpc.user.me.useQuery();
+  const signOut = trpc.user.signOut.useMutation({
+    onSuccess: () => {
+      // Clear session cookie
+      document.cookie = "rankflo_session=; path=/; max-age=0";
+      router.push("/login");
+    },
+  });
+
+  // Close on outside click
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  const name = me?.name ?? "…";
+  const email = me?.email ?? "";
+  const initial = name.charAt(0).toUpperCase();
+  const orgName = me?.memberships?.[0]?.organization?.name ?? "";
+
+  return (
+    <div className="border-t border-gray-200/50 p-3 dark:border-gray-800/50" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2.5 rounded-lg px-1 py-1 text-left transition-colors hover:bg-gray-50 dark:hover:bg-gray-900"
+      >
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-xs font-semibold text-accent">
+          {initial}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-medium text-gray-950 dark:text-white">{name}</p>
+          {orgName && (
+            <p className="truncate text-[11px] text-gray-400 dark:text-gray-500">{orgName}</p>
+          )}
+        </div>
+        <svg className={`h-4 w-4 shrink-0 text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="mt-1 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-950">
+          <div className="border-b border-gray-100 px-3 py-2 dark:border-gray-800">
+            <p className="text-[12px] font-medium text-gray-900 dark:text-white">{name}</p>
+            <p className="text-[11px] text-gray-500">{email}</p>
+          </div>
+          <div className="p-1">
+            <Link
+              href="/settings"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-900"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Settings
+            </Link>
+            <Link
+              href="/settings/billing"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-900"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
+              </svg>
+              Billing
+            </Link>
+          </div>
+          <div className="border-t border-gray-100 p-1 dark:border-gray-800">
+            <button
+              onClick={() => signOut.mutate()}
+              disabled={signOut.isPending}
+              className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 disabled:opacity-50"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
+              </svg>
+              {signOut.isPending ? "Signing out…" : "Sign out"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   const isSettingsActive = pathname.startsWith("/settings");
 
@@ -70,9 +165,7 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
     <>
       {/* Logo */}
       <div className="flex h-14 items-center px-4 border-b border-gray-200/50 dark:border-gray-800/50">
-        <Link href="/overview" className="text-lg font-bold tracking-tight" onClick={onNavigate}>
-          <span className="text-green-600 dark:text-accent">R</span>ankFlo
-        </Link>
+        <Logo href="/overview" size={24} />
       </div>
 
       {/* Nav */}
@@ -152,18 +245,8 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
         </Link>
       </div>
 
-      {/* User */}
-      <div className="border-t border-gray-200/50 p-3 dark:border-gray-800/50">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-            A
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="truncate text-[13px] text-gray-950 dark:text-white">Admin</p>
-            <p className="truncate text-[11px] text-gray-400 dark:text-gray-600">admin@rankflo.io</p>
-          </div>
-        </div>
-      </div>
+      {/* User menu */}
+      <UserMenu />
     </>
   );
 }

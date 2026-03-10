@@ -29,7 +29,7 @@ export const createPostSchema = z.object({
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 
 export const updatePostSchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().min(1),
   title: z.string().min(1).max(CONTENT.maxTitleLength).optional(),
   slug: z
     .string()
@@ -66,11 +66,11 @@ export const listPostsSchema = z.object({
 export type ListPostsInput = z.infer<typeof listPostsSchema>;
 
 export const getPostSchema = z.object({
-  id: z.string().cuid().optional(),
+  id: z.string().min(1).optional(),
   slug: z.string().optional(),
 });
 export type GetPostInput = z.infer<typeof getPostSchema>;
 
 export const deletePostSchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().min(1),
 });

@@ -69,17 +69,19 @@ model OAuthAccount {
 // ─── ORGANIZATIONS ──────────────────────────────────────────
 
 model Organization {
-  id           String    @id @default(cuid())
-  name         String
-  slug         String    @unique
-  logoUrl      String?
-  plan         Plan      @default(FREE)
-  customDomain String?   @unique
-  subdomain    String?   @unique
-  settings     Json      @default("{}")
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  deletedAt    DateTime?
+  id               String    @id @default(cuid())
+  name             String
+  slug             String    @unique
+  logoUrl          String?
+  plan             Plan      @default(FREE)
+  customDomain     String?   @unique
+  subdomain        String?   @unique
+  settings         Json      @default("{}")
+  stripeCustomerId String?   @unique
+  aiCreditsBalance Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
 
   memberships      Membership[]
   teams            Team[]
@@ -96,10 +98,13 @@ model Organization {
   socialAccounts   SocialAccount[]
   calendarEntries  CalendarEntry[]
   utmLinks         UtmLink[]
+  subscription     Subscription?
+  creditLedger     CreditLedger[]
 
   @@index([slug])
   @@index([customDomain])
   @@index([subdomain])
+  @@index([stripeCustomerId])
   @@map("organizations")
 }
 
@@ -805,6 +810,14 @@ model Project {
   totalViews      Int           @default(0)
   lastDeployedAt  DateTime?
 
+  // Autopilot
+  autopilotEnabled     Boolean   @default(false)
+  autopilotFrequency   Int       @default(2)        // posts per week
+  autopilotContentType String    @default("blog-post")
+  autopilotAutoPublish Boolean   @default(false)
+  autopilotLastRunAt   DateTime?
+  autopilotNextRunAt   DateTime?
+
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -838,4 +851,68 @@ model Deployment {
   @@index([projectId, createdAt(sort: Desc)])
   @@index([postId])
   @@map("deployments")
+}
+
+// ─── BILLING ─────────────────────────────────────────────────
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  organizationId       String             @unique
+  stripeCustomerId     String             @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  status               SubscriptionStatus @default(TRIALING)
+  interval             BillingInterval?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  trialEnd             DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
+  @@map("subscriptions")
+}
+
+model CreditLedger {
+  id             String          @id @default(cuid())
+  organizationId String
+  type           CreditEventType
+  amount         Int
+  balance        Int
+  description    String?
+  metadata       Json?
+  createdAt      DateTime        @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@map("credit_ledger")
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAUSED
+}
+
+enum BillingInterval {
+  MONTHLY
+  ANNUAL
+}
+
+enum CreditEventType {
+  MONTHLY_GRANT
+  TRIAL_GRANT
+  PURCHASE
+  USAGE
+  REFUND
 }

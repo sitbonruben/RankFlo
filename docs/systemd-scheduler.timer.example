@@ -1,0 +1,15 @@
+# RankFlo Scheduler Systemd Timer
+# Installation: Copy to /etc/systemd/system/rankflo-scheduler.timer
+
+[Unit]
+Description=RankFlo Scheduler Timer
+Requires=rankflo-scheduler.service
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=5min
+Persistent=true
+AccuracySec=1min
+
+[Install]
+WantedBy=timers.target

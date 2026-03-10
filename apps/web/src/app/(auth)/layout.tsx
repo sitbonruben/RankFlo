@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Logo } from "@/components/logo";
 
 export default function AuthLayout({
   children,
@@ -9,9 +10,7 @@ export default function AuthLayout({
     <div className="flex min-h-screen">
       {/* Left: branding panel */}
       <div className="hidden w-1/2 flex-col justify-between bg-gray-950 p-12 lg:flex">
-        <Link href="/" className="text-xl font-bold tracking-tight">
-          <span className="text-accent">R</span>ankFlo
-        </Link>
+        <Logo size={28} />
 
         <div>
           <blockquote className="max-w-md">

@@ -13,20 +13,35 @@ import {
   chat,
 } from "@rankflo/ai";
 import type { AIConfig, BrandVoice } from "@rankflo/ai";
+import { checkAndDeductCredits } from "../lib/credits";
+import { CREDIT_COSTS } from "@rankflo/core/constants";
 
 // ─── Helpers ────────────────────────────────────────────────
 
 /**
- * Resolve the AI configuration from environment variables.
- * Throws a descriptive PRECONDITION_FAILED error if no API key is set.
+ * Resolve AI config: org-level settings take priority over env vars.
  */
-function requireAIConfig(): AIConfig {
+async function requireAIConfig(ctx: { db: { organization: { findUnique: (args: unknown) => Promise<{ settings: unknown } | null> } }; organizationId: string }): Promise<AIConfig> {
+  // 1. Check org-level AI settings first
+  const org = await ctx.db.organization.findUnique({
+    where: { id: ctx.organizationId },
+    select: { settings: true },
+  });
+  const settings = (org?.settings as Record<string, unknown>) ?? {};
+  if (settings.aiApiKey && settings.aiProvider) {
+    return {
+      provider: settings.aiProvider as "openai" | "anthropic" | "google",
+      apiKey: settings.aiApiKey as string,
+    };
+  }
+
+  // 2. Fall back to environment variables
   const config = resolveAIConfig();
   if (!config) {
     throw new TRPCError({
       code: "PRECONDITION_FAILED",
       message:
-        "No AI provider configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY in your environment.",
+        "No AI provider configured. Add an API key in Settings → AI, or set OPENAI_API_KEY / ANTHROPIC_API_KEY in your environment.",
     });
   }
   return config;
@@ -100,7 +115,10 @@ export const aiRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const config = requireAIConfig();
+      const config = await requireAIConfig(ctx);
+
+      // Deduct AI credits before calling the provider
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.generateContent, "generateContent");
 
       // Look up the project to get brand voice and style
       const project = await ctx.db.project.findFirst({
@@ -152,7 +170,9 @@ export const aiRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const config = requireAIConfig();
+      const config = await requireAIConfig(ctx);
+
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.suggestTopics, "suggestTopics");
 
       const project = await ctx.db.project.findFirst({
         where: { id: input.projectId, organizationId: ctx.organizationId },
@@ -213,7 +233,9 @@ export const aiRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const config = requireAIConfig();
+      const config = await requireAIConfig(ctx);
+
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.createStrategy, "createStrategy");
 
       const project = await ctx.db.project.findFirst({
         where: { id: input.projectId, organizationId: ctx.organizationId },
@@ -284,7 +306,9 @@ export const aiRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const config = requireAIConfig();
+      const config = await requireAIConfig(ctx);
+
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.analyzeBrandVoice, "analyzeBrandVoice");
 
       const project = await ctx.db.project.findFirst({
         where: { id: input.projectId, organizationId: ctx.organizationId },
@@ -371,7 +395,9 @@ export const aiRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const config = requireAIConfig();
+      const config = await requireAIConfig(ctx);
+
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.improveContent, "improveContent");
 
       let brandVoice: BrandVoice | undefined;
 
@@ -418,7 +444,9 @@ export const aiRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const config = requireAIConfig();
+      const config = await requireAIConfig(ctx);
+
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.chat, "chat");
 
       let brandVoice: BrandVoice | undefined;
 

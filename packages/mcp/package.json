@@ -1,0 +1,23 @@
+{
+  "name": "@rankflo/mcp",
+  "version": "1.0.0",
+  "description": "MCP server for RankFlo — lets Claude Desktop create and publish blog posts",
+  "type": "module",
+  "bin": {
+    "rankflo-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  },
+  "files": ["dist"],
+  "engines": { "node": ">=18" }
+}

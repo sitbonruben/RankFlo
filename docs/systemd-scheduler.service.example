@@ -1,0 +1,26 @@
+# RankFlo Scheduler Systemd Service
+# Installation: Copy to /etc/systemd/system/rankflo-scheduler.service
+
+[Unit]
+Description=RankFlo Scheduled Content Publisher
+After=network.target postgresql.service
+Wants=rankflo-scheduler.timer
+
+[Service]
+Type=oneshot
+User=rankflo
+Group=rankflo
+WorkingDirectory=/opt/rankflo
+ExecStart=/usr/bin/pnpm cron:publish
+Environment="NODE_ENV=production"
+Environment="LOG_LEVEL=info"
+Environment="DATABASE_URL=postgresql://rankflo:password@localhost:5432/rankflo"
+StandardOutput=journal
+StandardError=journal
+MemoryLimit=500M
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=30
+
+[Install]
+WantedBy=multi-user.target

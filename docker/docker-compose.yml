@@ -6,35 +6,33 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.web
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - ../.env.production
     environment:
-      DATABASE_URL: postgresql://rankflo:rankflo@postgres:5432/rankflo
       REDIS_URL: redis://redis:6379
-      RANKFLO_MODE: oss
-      AUTH_SECRET: change-this-to-a-random-32-char-string
-      ADMIN_EMAIL: admin@rankflo.io
-      ADMIN_PASSWORD: change-this-immediately
-      NEXT_PUBLIC_APP_URL: http://localhost:3000
-      SEED_ON_STARTUP: "true"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - default
+      - proxy
     restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
-      POSTGRES_DB: rankflo
-      POSTGRES_USER: rankflo
-      POSTGRES_PASSWORD: rankflo
+      POSTGRES_DB: ${POSTGRES_DB:-rankflo}
+      POSTGRES_USER: ${POSTGRES_USER:-rankflo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rankflo"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rankflo}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -43,7 +41,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -56,3 +54,8 @@ services:
 volumes:
   pgdata:
   redisdata:
+
+networks:
+  default:
+  proxy:
+    external: true

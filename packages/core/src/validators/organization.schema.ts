@@ -11,7 +11,7 @@ export const createOrganizationSchema = z.object({
 export type CreateOrganizationInput = z.infer<typeof createOrganizationSchema>;
 
 export const updateOrganizationSchema = z.object({
-  id: z.string().cuid(),
+  id: z.string().min(1),
   name: z.string().min(1).max(100).optional(),
   logoUrl: z.string().url().nullable().optional(),
   settings: z.record(z.unknown()).optional(),
@@ -21,7 +21,7 @@ export type UpdateOrganizationInput = z.infer<typeof updateOrganizationSchema>;
 export const inviteMemberSchema = z.object({
   email: z.string().email(),
   role: z.enum(["ADMIN", "EDITOR", "AUTHOR", "VIEWER"]),
-  teamId: z.string().cuid().optional(),
+  teamId: z.string().min(1).optional(),
 });
 export type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 

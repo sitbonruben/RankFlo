@@ -208,4 +208,60 @@ export const organizationRouter = router({
         },
       });
     }),
+
+  // ─── AI Settings ────────────────────────────────────────
+  getAISettings: orgProcedure
+    .use(requireRole("ADMIN"))
+    .query(async ({ ctx }) => {
+      const org = await ctx.db.organization.findUnique({
+        where: { id: ctx.organizationId },
+        select: { settings: true },
+      });
+      const settings = (org?.settings as Record<string, unknown>) ?? {};
+      const provider = (settings.aiProvider as string) ?? null;
+      const hasKey = !!(settings.aiApiKey);
+      const maskedKey = settings.aiApiKey
+        ? `${(settings.aiApiKey as string).slice(0, 14)}...`
+        : null;
+      return { provider, hasKey, maskedKey };
+    }),
+
+  updateAISettings: orgProcedure
+    .use(requireRole("ADMIN"))
+    .input(
+      z.object({
+        provider: z.enum(["anthropic", "openai", "google"]),
+        apiKey: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const org = await ctx.db.organization.findUnique({
+        where: { id: ctx.organizationId },
+        select: { settings: true },
+      });
+      const current = (org?.settings as Record<string, unknown>) ?? {};
+      await ctx.db.organization.update({
+        where: { id: ctx.organizationId },
+        data: {
+          settings: { ...current, aiProvider: input.provider, aiApiKey: input.apiKey },
+        },
+      });
+      return { success: true };
+    }),
+
+  clearAISettings: orgProcedure
+    .use(requireRole("ADMIN"))
+    .mutation(async ({ ctx }) => {
+      const org = await ctx.db.organization.findUnique({
+        where: { id: ctx.organizationId },
+        select: { settings: true },
+      });
+      const { aiProvider: _p, aiApiKey: _k, ...rest } =
+        (org?.settings as Record<string, unknown>) ?? {};
+      await ctx.db.organization.update({
+        where: { id: ctx.organizationId },
+        data: { settings: rest },
+      });
+      return { success: true };
+    }),
 });

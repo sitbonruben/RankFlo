@@ -24,24 +24,39 @@ const handler = (req: Request) =>
         const hashedKey = createHash("sha256").update(token).digest("hex");
 
         const apiKey = await db.apiKey.findFirst({
-          where: { hashedKey, revokedAt: null },
+          where: { keyHash: hashedKey, revokedAt: null },
           include: {
-            organization: true,
+            user: { select: { id: true, email: true, name: true, avatarUrl: true, locale: true } },
+            organization: { select: { id: true, name: true, slug: true, plan: true } },
           },
         });
 
-        if (apiKey) {
+        if (apiKey && (!apiKey.expiresAt || apiKey.expiresAt > new Date())) {
           // Update last used timestamp
           await db.apiKey.update({
             where: { id: apiKey.id },
             data: { lastUsedAt: new Date() },
           });
 
-          // Create a synthetic session for API key auth
+          // Get membership for this user+org
+          const membership = await db.membership.findFirst({
+            where: { userId: apiKey.userId, organizationId: apiKey.organizationId },
+            select: { id: true, role: true },
+          });
+
+          // Build a SessionData-compatible synthetic session
           session = {
+            id: `apikey_${apiKey.id}`,
             userId: apiKey.userId,
-            organizationId: apiKey.organizationId,
-            role: "ADMIN" as const,
+            user: apiKey.user,
+            membership: membership
+              ? {
+                  id: membership.id,
+                  organizationId: apiKey.organizationId,
+                  role: membership.role as "ADMIN" | "EDITOR" | "AUTHOR" | "VIEWER",
+                  organization: apiKey.organization,
+                }
+              : null,
           };
         }
       }

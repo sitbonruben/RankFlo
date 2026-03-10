@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 function MarketingNav() {
@@ -10,11 +11,7 @@ function MarketingNav() {
   return (
     <header className="fixed top-0 z-50 w-full border-b border-gray-200/50 bg-white/80 backdrop-blur-xl dark:border-gray-800/50 dark:bg-black/80">
       <div className="mx-auto flex h-16 max-w-wide items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-2">
-          <span className="text-xl font-bold tracking-tight">
-            <span className="text-accent dark:text-accent">R</span>ankFlo
-          </span>
-        </Link>
+        <Logo size={28} />
 
         <nav className="hidden items-center gap-8 md:flex">
           <Link
@@ -200,7 +197,7 @@ export default function MarketingLayout({
 
       {/* Decorative vertical guide lines */}
       <div className="pointer-events-none fixed inset-0 z-0" aria-hidden="true">
-        <div className="mx-auto h-full w-full max-w-[90rem] px-6">
+        <div className="mx-auto h-full w-full max-w-wide px-6">
           <div className="flex h-full justify-between">
             <div className="w-px bg-gradient-to-b from-transparent via-gray-200/40 to-transparent dark:via-gray-800/40" />
             <div className="w-px bg-gradient-to-b from-transparent via-gray-200/30 to-transparent dark:via-gray-800/30" />
