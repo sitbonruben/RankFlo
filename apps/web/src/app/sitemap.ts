@@ -1,8 +1,12 @@
 import type { MetadataRoute } from "next";
+import { db } from "@rankflo/db";
+
+export const dynamic = "force-dynamic";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io";
+const RANKFLO_PROJECT_ID = "cllr001rankfloproject00000";
 
-// Topic clusters for programmatic SEO pages
+// Topic cluster landing pages (programmatic SEO)
 const TOPICS = [
   "blog-platform",
   "headless-cms",
@@ -16,6 +20,7 @@ const TOPICS = [
   "developer-blog",
 ];
 
+// Competitor comparison pages
 const COMPARISONS = [
   "rankflo-vs-wordpress",
   "rankflo-vs-ghost",
@@ -27,17 +32,23 @@ const COMPARISONS = [
   "rankflo-vs-sanity",
 ];
 
-// Static blog posts (in production, fetch from DB)
-const BLOG_SLUGS = [
-  "introducing-rankflo",
-  "postgresql-full-text-search",
-  "cookieless-analytics",
-  "self-hosting-guide",
-  "seo-scoring-explained",
-  "webhooks-done-right",
-];
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Fetch real published blog posts from DB (graceful fallback if DB unavailable)
+  let posts: { slug: string; updatedAt: Date; publishedAt: Date | null }[] = [];
+  try {
+    posts = await db.post.findMany({
+      where: {
+        projectId: RANKFLO_PROJECT_ID,
+        status: "PUBLISHED",
+        deletedAt: null,
+      },
+      select: { slug: true, updatedAt: true, publishedAt: true },
+      orderBy: { publishedAt: "desc" },
+    });
+  } catch {
+    // DB not available at build time — serve static pages only
+  }
 
-export default function sitemap(): MetadataRoute.Sitemap {
   const staticPages: MetadataRoute.Sitemap = [
     {
       url: BASE_URL,
@@ -67,19 +78,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${BASE_URL}/about`,
       lastModified: new Date(),
       changeFrequency: "monthly",
-      priority: 0.6,
+      priority: 0.7,
     },
   ];
 
-  // Blog posts
-  const blogPages: MetadataRoute.Sitemap = BLOG_SLUGS.map((slug) => ({
-    url: `${BASE_URL}/blog/${slug}`,
-    lastModified: new Date(),
+  // Dynamic blog posts from DB (always accurate, no stale slugs)
+  const blogPages: MetadataRoute.Sitemap = posts.map((post) => ({
+    url: `${BASE_URL}/blog/${post.slug}`,
+    lastModified: post.updatedAt ?? post.publishedAt ?? new Date(),
     changeFrequency: "weekly" as const,
-    priority: 0.7,
+    priority: 0.8,
   }));
 
-  // Topic landing pages for programmatic SEO
+  // Topic landing pages
   const topicPages: MetadataRoute.Sitemap = TOPICS.map((topic) => ({
     url: `${BASE_URL}/for/${topic}`,
     lastModified: new Date(),
@@ -87,7 +98,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }));
 
-  // Comparison pages
+  // Competitor comparison pages
   const comparisonPages: MetadataRoute.Sitemap = COMPARISONS.map((slug) => ({
     url: `${BASE_URL}/compare/${slug}`,
     lastModified: new Date(),

@@ -1,73 +1,96 @@
+import { db } from "@rankflo/db";
+
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io";
+const RANKFLO_PROJECT_ID = "cllr001rankfloproject00000";
 
 export async function GET() {
+  // Fetch real published blog posts so LLMs get accurate content links
+  let posts: { slug: string; title: string; excerpt: string | null }[] = [];
+  try {
+    posts = await db.post.findMany({
+      where: {
+        projectId: RANKFLO_PROJECT_ID,
+        status: "PUBLISHED",
+        deletedAt: null,
+      },
+      select: { slug: true, title: true, excerpt: true },
+      orderBy: { publishedAt: "desc" },
+    });
+  } catch {
+    // DB not available — serve static content only
+  }
+
+  const blogList = posts
+    .map((p) => `- [${p.title}](${BASE_URL}/blog/${p.slug})${p.excerpt ? `: ${p.excerpt}` : ""}`)
+    .join("\n");
+
   const content = `# RankFlo
 
-> The open-source blog platform built for what's next.
+> Headless CMS and blog platform built for SEO-driven content.
 
-RankFlo is a modular, open-source blogging platform with AI content generation, built-in analytics, SEO scoring, full-text search, and a headless CMS API. Built with Next.js, TypeScript, PostgreSQL, and Redis. Self-host with Docker or use our managed cloud.
+RankFlo is a SaaS headless CMS that lets product teams publish SEO-optimized blogs on any domain via a REST API. It includes an AI content engine, a block-based editor, built-in analytics, and a per-project API key system. Built with Next.js 15, tRPC, Prisma, PostgreSQL, and Redis.
+
+## What RankFlo Does
+
+RankFlo gives software companies a managed blog backend. Teams connect their domain, call the RankFlo API to fetch published posts, and render them on their own site. RankFlo handles content creation, SEO optimization, autopilot publishing, and discoverability (sitemap.xml, robots.txt, llms.txt) per project.
 
 ## Core Features
 
-- **AI Content Engine**: Generate SEO-optimized blog posts matching your brand voice. Multi-step pipeline: research, outline, draft, optimize.
-- **Built-in Analytics**: Privacy-friendly, cookieless tracking. Page views, visitors, referrers, device breakdown, geographic insights, and search analytics.
-- **SEO Toolkit**: Real-time SEO scoring, meta optimization, structured data (JSON-LD), keyword density analysis, and internal linking suggestions.
-- **Rich Block Editor**: 14+ block types including text, code, embeds, images, callouts, toggles, and tables. Content stored as structured JSON.
-- **Full-Text Search**: Instant search with autocomplete and faceted filtering. PostgreSQL tsvector (default) or Meilisearch.
-- **Headless CMS API**: Type-safe tRPC and REST APIs. Webhooks for every event. OpenAPI documentation.
-- **TypeScript SDK**: Auto-generated types from schema. Zero guesswork, full IntelliSense.
-- **Multi-Language (i18n)**: Publish in any language. All UI strings externalized. RTL support.
-- **Team Collaboration**: Granular RBAC with admin, editor, author, and viewer roles.
-- **Self-Hostable**: Deploy anywhere with Docker Compose. PostgreSQL + Redis. Own your data.
+- **Headless CMS API**: REST endpoint delivers published posts as structured JSON (blocks: headings, text, lists, callouts, embeds, images). One API key per project.
+- **AI Content Engine**: Generate full blog posts from a topic. Choose Anthropic Claude, OpenAI GPT-4, or Google Gemini. Research → outline → draft → SEO optimize pipeline.
+- **SEO Autopilot**: Schedule recurring content. Auto-publish on a cadence. Never have a stale blog.
+- **Block Editor**: Rich editor with 14+ block types. Content stored as structured JSON for easy rendering.
+- **Per-Project SEO Files**: Each project gets its own sitemap.xml, robots.txt, and llms.txt endpoints served via the RankFlo API and proxied from the customer domain.
+- **Analytics**: Cookieless, privacy-friendly tracking. Page views, referrers, device breakdown.
+- **Team & Multi-Org**: Multiple organizations, projects per org, role-based access (admin, editor, author).
+- **MCP Server**: Claude Desktop integration via @rankflo/mcp for AI-assisted content creation.
 
-## Integrations
+## API Quick Start
 
-- GitHub / GitLab / Bitbucket (content sync)
-- Shopify (storefront publishing)
-- WordPress (bi-directional sync)
-- Webflow / Wix (visual builder publishing)
-- REST API and GraphQL endpoints
-- Webhook system with HMAC-SHA256 signing
-
-## Tech Stack
-
-- Next.js 15 (App Router)
-- React 19
-- TypeScript 5
-- Tailwind CSS v4
-- Prisma ORM (PostgreSQL)
-- tRPC 11
-- Redis
-- Docker
+\`\`\`
+GET https://app.rankflo.io/api/v1/content?project_key=blg_YOUR_KEY
+GET https://app.rankflo.io/api/v1/content/{slug}?project_key=blg_YOUR_KEY
+GET https://app.rankflo.io/api/v1/sitemap.xml?project_key=blg_YOUR_KEY
+GET https://app.rankflo.io/api/v1/robots.txt?project_key=blg_YOUR_KEY
+GET https://app.rankflo.io/api/v1/llms.txt?project_key=blg_YOUR_KEY
+\`\`\`
 
 ## Pricing
 
-- **Free**: 50 posts, 10 pages, 3 team members, 500 MB storage, 30-day analytics
-- **Pro ($19/mo)**: Unlimited posts/pages, 20 team members, 10 GB storage, 1-year analytics, advanced search, SEO audit tools
-- **Enterprise (Custom)**: Unlimited everything, SSO/SAML, SLA, dedicated support
+- **Free**: Up to 5 projects, 50 posts per project, AI content generation, API access
+- **Pro ($19/mo)**: Unlimited projects and posts, autopilot scheduling, advanced SEO tools, priority support
+- **Enterprise**: Custom limits, SSO, SLA, dedicated infrastructure
+
+## Blog Posts
+
+${blogList || "- Coming soon"}
+
+## Comparison Pages
+
+- [RankFlo vs WordPress](${BASE_URL}/compare/rankflo-vs-wordpress)
+- [RankFlo vs Ghost](${BASE_URL}/compare/rankflo-vs-ghost)
+- [RankFlo vs Contentful](${BASE_URL}/compare/rankflo-vs-contentful)
+- [RankFlo vs Strapi](${BASE_URL}/compare/rankflo-vs-strapi)
+- [RankFlo vs Sanity](${BASE_URL}/compare/rankflo-vs-sanity)
 
 ## Links
 
 - Website: ${BASE_URL}
-- Documentation: https://docs.rankflo.io
-- GitHub: https://github.com/rankflo/rankflo
+- App / Dashboard: https://app.rankflo.io
 - Blog: ${BASE_URL}/blog
 - Pricing: ${BASE_URL}/pricing
 - Features: ${BASE_URL}/features
-- RSS Feed: ${BASE_URL}/feed.xml
-- API Reference: https://docs.rankflo.io/api
+- Sitemap: ${BASE_URL}/sitemap.xml
 
 ## Contact
 
 - Email: hello@rankflo.io
-- Twitter/X: @rankflo
-- GitHub Issues: https://github.com/rankflo/rankflo/issues
 `;
 
   return new Response(content, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "public, max-age=86400, s-maxage=86400",
+      "Cache-Control": "public, max-age=3600, s-maxage=3600",
     },
   });
 }
