@@ -345,6 +345,7 @@ model SeoMeta {
 model AnalyticsEvent {
   id             String   @id @default(cuid())
   organizationId String
+  projectId      String?
   sessionId      String
   visitorId      String
   eventType      String
@@ -367,6 +368,7 @@ model AnalyticsEvent {
   @@index([organizationId, timestamp(sort: Desc)])
   @@index([organizationId, eventType, timestamp(sort: Desc)])
   @@index([organizationId, path])
+  @@index([projectId, timestamp(sort: Desc)])
   @@index([sessionId])
   @@map("analytics_events")
 }

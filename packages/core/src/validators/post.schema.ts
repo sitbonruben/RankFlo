@@ -19,6 +19,9 @@ export const createPostSchema = z.object({
     .max(CONTENT.maxSlugLength)
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Invalid slug format"),
   content: z.any(),
+  contentHtml: z.string().optional(),
+  contentPlain: z.string().optional(),
+  readingTime: z.number().int().nonnegative().optional(),
   excerpt: z.string().max(CONTENT.maxExcerptLength).optional(),
   featuredImage: z.string().url().optional(),
   status: postStatusSchema.default("DRAFT"),
@@ -38,6 +41,9 @@ export const updatePostSchema = z.object({
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
     .optional(),
   content: z.any().optional(),
+  contentHtml: z.string().optional(),
+  contentPlain: z.string().optional(),
+  readingTime: z.number().int().nonnegative().optional(),
   excerpt: z.string().max(CONTENT.maxExcerptLength).optional(),
   featuredImage: z.string().url().nullable().optional(),
   status: postStatusSchema.optional(),
@@ -45,6 +51,10 @@ export const updatePostSchema = z.object({
   locale: z.string().optional(),
   tagIds: z.array(z.string()).max(CONTENT.maxTagsPerPost).optional(),
   changelog: z.string().max(500).optional(),
+  // SEO meta (upserted to seo_meta table)
+  metaTitle: z.string().max(60).nullable().optional(),
+  metaDescription: z.string().max(160).nullable().optional(),
+  ogImage: z.string().url().nullable().optional(),
 });
 export type UpdatePostInput = z.infer<typeof updatePostSchema>;
 

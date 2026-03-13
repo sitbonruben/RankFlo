@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useStore } from "zustand";
 import Link from "next/link";
 import { useEditorStore } from "@/stores/editor-store";
 import { trpc } from "@/trpc/client";
 import { slugify } from "@/lib/seo-utils";
 import { blocksToHtml, blocksToPlainText } from "@/lib/editor-utils";
+import { EditorPreview } from "@/components/editor/editor-preview";
 
 // ─── Icons ──────────────────────────────────────────────
 
@@ -152,6 +154,17 @@ function SaveStatus({
   return null;
 }
 
+// ─── Derived content helper ──────────────────────────────
+
+function computeDerivedContent(state: ReturnType<typeof useEditorStore.getState>) {
+  const blocks = state.document?.blocks ?? [];
+  const contentHtml = blocksToHtml(blocks);
+  const contentPlain = blocksToPlainText(blocks);
+  const wordCount = contentPlain.trim().split(/\s+/).filter(Boolean).length;
+  const readingTime = Math.max(1, Math.round(wordCount / 200));
+  return { contentHtml, contentPlain, readingTime };
+}
+
 // ─── Editor Topbar ──────────────────────────────────────
 
 export function EditorTopbar() {
@@ -162,11 +175,6 @@ export function EditorTopbar() {
   const isSaving = useEditorStore((s) => s.isSaving);
   const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
   const postId = useEditorStore((s) => s.postId);
-  const document = useEditorStore((s) => s.document);
-  const excerpt = useEditorStore((s) => s.excerpt);
-  const featuredImage = useEditorStore((s) => s.featuredImage);
-  const tagIds = useEditorStore((s) => s.tagIds);
-  const locale = useEditorStore((s) => s.locale);
   const setTitle = useEditorStore((s) => s.setTitle);
   const setSlug = useEditorStore((s) => s.setSlug);
   const setIsSaving = useEditorStore((s) => s.setIsSaving);
@@ -180,7 +188,6 @@ export function EditorTopbar() {
 
   const createPost = trpc.post.create.useMutation();
   const updatePost = trpc.post.update.useMutation();
-  const publishPost = trpc.post.publish.useMutation();
 
   // Auto-generate slug from title if slug hasn't been manually edited
   const handleTitleChange = useCallback(
@@ -201,6 +208,25 @@ export function EditorTopbar() {
     [setSlug],
   );
 
+  // ─── Build common post payload ──────────────────────────
+  function buildPayload(state: ReturnType<typeof useEditorStore.getState>, resolvedSlug: string) {
+    const { contentHtml, contentPlain, readingTime } = computeDerivedContent(state);
+    return {
+      title: state.title,
+      slug: resolvedSlug,
+      content: state.document,
+      contentHtml,
+      contentPlain,
+      readingTime,
+      excerpt: state.excerpt || undefined,
+      featuredImage: state.featuredImage || undefined,
+      tagIds: state.tagIds.length > 0 ? state.tagIds : undefined,
+      metaTitle: state.metaTitle || undefined,
+      metaDescription: state.metaDescription || undefined,
+      ogImage: state.ogImage || undefined,
+    };
+  }
+
   // ─── Save Draft ────────────────────────────────────────
   const handleSaveDraft = useCallback(async () => {
     const state = useEditorStore.getState();
@@ -213,24 +239,14 @@ export function EditorTopbar() {
       if (state.postId) {
         await updatePost.mutateAsync({
           id: state.postId,
-          title: state.title,
-          slug: resolvedSlug,
-          content: state.document,
-          excerpt: state.excerpt || undefined,
-          featuredImage: state.featuredImage || undefined,
+          ...buildPayload(state, resolvedSlug),
           status: state.status,
-          tagIds: state.tagIds.length > 0 ? state.tagIds : undefined,
         });
       } else {
         const result = await createPost.mutateAsync({
-          title: state.title,
-          slug: resolvedSlug,
-          content: state.document,
-          excerpt: state.excerpt || undefined,
-          featuredImage: state.featuredImage || undefined,
+          ...buildPayload(state, resolvedSlug),
           status: "DRAFT",
           locale: state.locale,
-          tagIds: state.tagIds.length > 0 ? state.tagIds : undefined,
         });
         setPostId(result.id);
         if (!state.slug) {
@@ -254,30 +270,66 @@ export function EditorTopbar() {
     setSlug,
   ]);
 
-  // ─── Publish ───────────────────────────────────────────
+  // ─── Publish / Update ──────────────────────────────────
+  // Always saves all current content + SEO meta atomically with status=PUBLISHED.
+  // This ensures BugWizz (and any other consumer) immediately gets the latest content.
   const handlePublish = useCallback(async () => {
-    // Save first if needed
-    if (!postId) {
-      await handleSaveDraft();
-    }
+    const state = useEditorStore.getState();
+    if (!state.title.trim()) return;
 
-    const currentPostId = useEditorStore.getState().postId;
-    if (!currentPostId) return;
+    const resolvedSlug = state.slug || slugify(state.title);
+    setIsSaving(true);
 
     try {
-      await publishPost.mutateAsync({ id: currentPostId });
+      if (state.postId) {
+        // Existing post: update all fields + publish in one call
+        await updatePost.mutateAsync({
+          id: state.postId,
+          ...buildPayload(state, resolvedSlug),
+          status: "PUBLISHED",
+        });
+      } else {
+        // New post: create directly as published
+        const result = await createPost.mutateAsync({
+          ...buildPayload(state, resolvedSlug),
+          status: "PUBLISHED",
+          locale: state.locale,
+        });
+        setPostId(result.id);
+        if (!state.slug) setSlug(resolvedSlug);
+      }
       setStatus("PUBLISHED");
+      setLastSavedAt(new Date());
+      markClean();
     } catch (error) {
       console.error("Publish failed:", error);
+    } finally {
+      setIsSaving(false);
     }
-  }, [postId, handleSaveDraft, publishPost, setStatus]);
+  }, [
+    createPost,
+    updatePost,
+    setIsSaving,
+    setLastSavedAt,
+    markClean,
+    setPostId,
+    setSlug,
+    setStatus,
+  ]);
 
-  // ─── Undo/Redo state ──────────────────────────────────
-  const temporal = useEditorStore.temporal.getState();
-  const canUndo = temporal.pastStates.length > 0;
-  const canRedo = temporal.futureStates.length > 0;
+  // ─── Undo/Redo state (reactive via useStore subscription) ────────────────
+  const canUndo = useStore(useEditorStore.temporal, (s) => s.pastStates.length > 0);
+  const canRedo = useStore(useEditorStore.temporal, (s) => s.futureStates.length > 0);
+
+  const rightPanelOpen = useEditorStore((s) => s.rightPanelOpen);
+  const setRightPanelOpen = useEditorStore((s) => s.setRightPanelOpen);
+
+  const [showPreview, setShowPreview] = useState(false);
+  const isPublished = status === "PUBLISHED";
 
   return (
+    <>
+    {showPreview && <EditorPreview onClose={() => setShowPreview(false)} />}
     <div className="flex h-14 w-full items-center border-b border-gray-800 bg-black px-4">
       {/* Left: Back + Title */}
       <div className="flex flex-1 items-center gap-3">
@@ -307,7 +359,7 @@ export function EditorTopbar() {
         />
       </div>
 
-      {/* Right: Undo, Redo, Save, Publish */}
+      {/* Right: Undo, Redo, Save, Publish/Update */}
       <div className="flex flex-1 items-center justify-end gap-2">
         <button
           type="button"
@@ -331,6 +383,38 @@ export function EditorTopbar() {
 
         <div className="mx-1 h-5 w-px bg-gray-800" />
 
+        {/* Right panel toggle */}
+        <button
+          type="button"
+          onClick={() => setRightPanelOpen(!rightPanelOpen)}
+          className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+            rightPanelOpen
+              ? "bg-gray-800 text-white"
+              : "text-gray-500 hover:bg-gray-900 hover:text-white"
+          }`}
+          title={rightPanelOpen ? "Hide settings panel" : "Show settings panel"}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M15 3v18" />
+          </svg>
+        </button>
+
+        {/* Preview — shows rendered output exactly as delivered to connected projects */}
+        <button
+          type="button"
+          onClick={() => setShowPreview(true)}
+          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-700 px-3 text-sm text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
+          title="Preview content as delivered to connected projects"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          Preview
+        </button>
+
+        {/* Save Draft — always available (saves current status, not PUBLISHED) */}
         <button
           type="button"
           onClick={handleSaveDraft}
@@ -340,15 +424,17 @@ export function EditorTopbar() {
           Save draft
         </button>
 
+        {/* Publish / Update — saves everything + sets PUBLISHED */}
         <button
           type="button"
           onClick={handlePublish}
           disabled={isSaving || !title.trim()}
           className="inline-flex h-8 items-center rounded-lg bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Publish
+          {isPublished ? "Update" : "Publish"}
         </button>
       </div>
     </div>
+    </>
   );
 }

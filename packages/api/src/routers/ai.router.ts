@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import crypto from "crypto";
 
 import { router, orgProcedure } from "../trpc";
 import {
@@ -11,8 +12,10 @@ import {
   analyzeBrandVoice,
   improveContent,
   chat,
+  editDocument,
+  slugify,
 } from "@rankflo/ai";
-import type { AIConfig, BrandVoice } from "@rankflo/ai";
+import type { AIConfig, BrandVoice, GeneratedContent } from "@rankflo/ai";
 import { checkAndDeductCredits } from "../lib/credits";
 import { CREDIT_COSTS } from "@rankflo/core/constants";
 
@@ -87,6 +90,35 @@ function buildBrandVoiceFromProject(project: {
 // ─── Router ─────────────────────────────────────────────────
 
 export const aiRouter = router({
+  // ─── GET PROVIDER INFO ──────────────────────────────────
+  getProvider: orgProcedure
+    .query(async ({ ctx }) => {
+      const org = await ctx.db.organization.findUnique({
+        where: { id: ctx.organizationId },
+        select: { settings: true },
+      });
+      const settings = (org?.settings as Record<string, unknown>) ?? {};
+
+      if (settings.aiApiKey && settings.aiProvider) {
+        const p = settings.aiProvider as string;
+        return {
+          configured: true,
+          provider: p,
+          label: p === "anthropic" ? "Claude" : p === "openai" ? "GPT-4" : p === "google" ? "Gemini" : p,
+        };
+      }
+
+      // Fall back to env
+      const envConfig = resolveAIConfig();
+      if (!envConfig) return { configured: false, provider: null, label: null };
+      const p = envConfig.provider;
+      return {
+        configured: true,
+        provider: p,
+        label: p === "anthropic" ? "Claude" : p === "openai" ? "GPT-4" : p === "google" ? "Gemini" : p,
+      };
+    }),
+
   // ─── GENERATE CONTENT ───────────────────────────────────
   generateContent: orgProcedure
     .input(
@@ -449,6 +481,8 @@ export const aiRouter = router({
       await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.chat, "chat");
 
       let brandVoice: BrandVoice | undefined;
+      let projectDescription: string | undefined;
+      let existingPostTitles: string[] | undefined;
 
       if (input.projectId) {
         const project = await ctx.db.project.findFirst({
@@ -460,6 +494,15 @@ export const aiRouter = router({
 
         if (project) {
           brandVoice = buildBrandVoiceFromProject(project);
+          projectDescription = project.description ?? undefined;
+
+          const existingPosts = await ctx.db.post.findMany({
+            where: { projectId: project.id, deletedAt: null },
+            select: { title: true },
+            orderBy: { updatedAt: "desc" },
+            take: 30,
+          });
+          existingPostTitles = existingPosts.map((p) => p.title);
         }
       }
 
@@ -468,6 +511,8 @@ export const aiRouter = router({
           message: input.message,
           context: input.context,
           brandVoice,
+          projectDescription,
+          existingPostTitles,
         });
 
         return result;
@@ -481,5 +526,294 @@ export const aiRouter = router({
           cause: error,
         });
       }
+    }),
+
+  // ─── CREATE POST (research + generate + save) ────────
+  createPost: orgProcedure
+    .input(
+      z.object({
+        projectId: z.string(),
+        topic: z.string().optional(),
+        contentType: z
+          .enum(["blog-post", "tutorial", "how-to", "listicle", "comparison", "landing-page"])
+          .default("blog-post"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const config = await requireAIConfig(ctx);
+
+      // Charge full generate cost — covers research + generation
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.generateContent, "createPost");
+
+      const project = await ctx.db.project.findFirst({
+        where: { id: input.projectId, organizationId: ctx.organizationId },
+      });
+
+      if (!project) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+      }
+
+      // Load existing post titles to avoid duplicates
+      const existingPosts = await ctx.db.post.findMany({
+        where: { projectId: project.id, deletedAt: null },
+        select: { title: true },
+        orderBy: { updatedAt: "desc" },
+        take: 50,
+      });
+      const existingTitles = existingPosts.map((p) => p.title);
+
+      const brandStyle = project.brandStyle as Record<string, unknown> | null;
+      const contentScope =
+        typeof brandStyle?.contentScope === "string"
+          ? brandStyle.contentScope
+          : project.description ?? undefined;
+
+      // Determine topic
+      let topicTitle: string;
+      let topicKeywords: string[] = [];
+
+      if (input.topic) {
+        topicTitle = input.topic;
+      } else {
+        // Auto-research a unique topic the project hasn't covered yet
+        const suggestions = await suggestTopics(config, {
+          projectName: project.name,
+          industry: typeof brandStyle?.industry === "string" ? brandStyle.industry : undefined,
+          audience:
+            typeof brandStyle?.targetAudience === "string"
+              ? brandStyle.targetAudience
+              : undefined,
+          existingTopics: existingTitles,
+          contentScope,
+          count: 3,
+        });
+
+        const picked = suggestions[0];
+        if (!picked) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Could not generate a topic suggestion",
+          });
+        }
+        topicTitle = picked.topic;
+        topicKeywords = picked.keywords;
+      }
+
+      const brandVoice = buildBrandVoiceFromProject(project);
+
+      // Generate full content
+      let generated: GeneratedContent;
+      try {
+        generated = await generateContent(
+          config,
+          {
+            topic: topicTitle,
+            targetKeywords: topicKeywords.length > 0 ? topicKeywords : [topicTitle],
+            contentType: input.contentType,
+          },
+          brandVoice,
+        );
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? `Content generation failed: ${error.message}`
+              : "Content generation failed unexpectedly.",
+          cause: error,
+        });
+      }
+
+      // Save as DRAFT post
+      const post = await ctx.db.post.create({
+        data: {
+          title: generated.title,
+          slug: generated.slug || slugify(generated.title),
+          excerpt: generated.excerpt,
+          content: {
+            type: "doc",
+            blocks: [
+              {
+                id: crypto.randomUUID(),
+                type: "markdown",
+                props: { content: generated.content },
+              },
+            ],
+          },
+          contentHtml: generated.contentHtml,
+          contentPlain: generated.content,
+          readingTime: generated.estimatedReadTime,
+          status: "DRAFT",
+          organizationId: ctx.organizationId,
+          authorId: ctx.session.user.id,
+          projectId: project.id,
+          version: 1,
+          locale: "en",
+        },
+      });
+
+      // Create SEO metadata
+      await ctx.db.seoMeta.create({
+        data: {
+          postId: post.id,
+          metaTitle: generated.metaTitle,
+          metaDescription: generated.metaDescription,
+          keywords: generated.tags,
+          structuredData: (generated.structuredData as object) ?? undefined,
+        },
+      });
+
+      // Update project post count
+      await ctx.db.project.update({
+        where: { id: project.id },
+        data: { postCount: { increment: 1 } },
+      });
+
+      return {
+        postId: post.id,
+        slug: post.slug,
+        title: post.title,
+      };
+    }),
+
+  // ─── EDIT DOCUMENT (live block editing) ─────────────────
+  editDocument: orgProcedure
+    .input(
+      z.object({
+        instruction: z.string().min(1).max(600),
+        currentBlocks: z.array(z.any()),
+        postTitle: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const config = await requireAIConfig(ctx);
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.improveContent, "editDocument");
+
+      try {
+        const result = await editDocument(config, {
+          instruction: input.instruction,
+          currentBlocks: input.currentBlocks,
+          postTitle: input.postTitle,
+        });
+        return result;
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Document edit failed.",
+          cause: error,
+        });
+      }
+    }),
+
+  // ─── GENERATE SCHEDULE (autopilot) ──────────────────────
+  generateSchedule: orgProcedure
+    .input(
+      z.object({
+        projectId: z.string(),
+        count: z.number().min(1).max(14).default(7),
+        autoSchedule: z.boolean().default(false),
+        keywords: z.string().optional(),
+        startDate: z.coerce.date().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const config = await requireAIConfig(ctx);
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.suggestTopics * input.count, "generateSchedule");
+
+      const project = await ctx.db.project.findFirst({
+        where: { id: input.projectId, organizationId: ctx.organizationId },
+      });
+      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+
+      const existing = await ctx.db.post.findMany({
+        where: { projectId: input.projectId, deletedAt: null },
+        select: { title: true },
+        take: 50,
+      });
+      const existingTitles = existing.map((p) => p.title);
+
+      const brandStyle = project.brandStyle as Record<string, unknown> | null;
+      const contentScope = input.keywords
+        ? `Focus on: ${input.keywords}`
+        : typeof brandStyle?.contentScope === "string"
+          ? brandStyle.contentScope
+          : project.description ?? undefined;
+
+      const suggestions = await suggestTopics(config, {
+        projectName: project.name,
+        industry: typeof brandStyle?.industry === "string" ? brandStyle.industry : undefined,
+        audience: typeof brandStyle?.targetAudience === "string" ? brandStyle.targetAudience : undefined,
+        existingTopics: existingTitles,
+        contentScope,
+        count: input.count,
+      });
+
+      const startDate = input.startDate ?? new Date();
+      const created: { id: string; title: string; slug: string; scheduledAt: Date | null }[] = [];
+
+      for (let i = 0; i < suggestions.length; i++) {
+        const topic = suggestions[i];
+        if (!topic) continue;
+
+        const dayOffset = Math.floor(i / 2);
+        const slotHour = i % 2 === 0 ? 9 : 15;
+        const scheduledAt = new Date(startDate);
+        scheduledAt.setDate(scheduledAt.getDate() + dayOffset + 1);
+        scheduledAt.setUTCHours(slotHour, 0, 0, 0);
+
+        const postSlug = slugify(topic.topic) + "-" + crypto.randomBytes(3).toString("hex");
+
+        const post = await ctx.db.post.create({
+          data: {
+            title: topic.topic,
+            slug: postSlug,
+            excerpt: topic.description ?? "",
+            content: {
+              blocks: [
+                {
+                  id: crypto.randomBytes(4).toString("hex"),
+                  type: "callout",
+                  props: {
+                    type: "info",
+                    title: "AI-generated post",
+                    text: "Open this post in the editor and click \"Generate with AI\" to fill in the full content.",
+                  },
+                },
+              ],
+              version: 1,
+              metadata: {},
+            },
+            contentPlain: topic.description ?? "",
+            status: input.autoSchedule ? "SCHEDULED" : "DRAFT",
+            scheduledAt: input.autoSchedule ? scheduledAt : null,
+            organizationId: ctx.organizationId,
+            authorId: ctx.session.user.id,
+            projectId: project.id,
+            version: 1,
+            locale: "en",
+          },
+        });
+
+        await ctx.db.calendarEntry.create({
+          data: {
+            organizationId: ctx.organizationId,
+            title: topic.topic,
+            entryType: "BLOG_POST",
+            status: "PLANNED",
+            postId: post.id,
+            scheduledDate: scheduledAt,
+            tags: topic.keywords ?? [],
+          },
+        });
+
+        created.push({ id: post.id, title: post.title, slug: post.slug, scheduledAt: input.autoSchedule ? scheduledAt : null });
+      }
+
+      await ctx.db.project.update({
+        where: { id: project.id },
+        data: { postCount: { increment: created.length } },
+      });
+
+      return { created };
     }),
 });

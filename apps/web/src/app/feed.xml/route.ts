@@ -1,49 +1,7 @@
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io";
+import { db } from "@rankflo/db";
 
-const POSTS = [
-  {
-    title: "Introducing RankFlo: The Open-Source Blogging Platform for Modern Teams",
-    slug: "introducing-rankflo",
-    excerpt: "We built RankFlo because teams deserve a blogging platform that's powerful enough for enterprise, simple enough for solo creators, and open enough to self-host anywhere.",
-    date: "2026-03-01T00:00:00Z",
-    author: "RankFlo Team",
-  },
-  {
-    title: "Why We Chose PostgreSQL Full-Text Search Over Elasticsearch",
-    slug: "postgresql-full-text-search",
-    excerpt: "The tradeoffs we considered, the benchmarks we ran, and why Postgres tsvector was the right default for 90% of use cases.",
-    date: "2026-02-25T00:00:00Z",
-    author: "Engineering",
-  },
-  {
-    title: "Building an Analytics Engine Without Cookies",
-    slug: "cookieless-analytics",
-    excerpt: "How we track meaningful metrics while respecting privacy — no cookies, no fingerprinting, no consent banners.",
-    date: "2026-02-18T00:00:00Z",
-    author: "Engineering",
-  },
-  {
-    title: "Self-Hosting RankFlo: A Complete Guide",
-    slug: "self-hosting-guide",
-    excerpt: "Deploy RankFlo on your own infrastructure with Docker in under 5 minutes.",
-    date: "2026-02-10T00:00:00Z",
-    author: "RankFlo Team",
-  },
-  {
-    title: "SEO Scoring: How We Grade Your Content",
-    slug: "seo-scoring-explained",
-    excerpt: "A deep dive into our 9-check SEO audit system.",
-    date: "2026-02-03T00:00:00Z",
-    author: "Product",
-  },
-  {
-    title: "Webhooks Done Right: Delivery, Retry, and Dead Letters",
-    slug: "webhooks-done-right",
-    excerpt: "Our approach to reliable webhook delivery with HMAC-SHA256 signing and exponential backoff.",
-    date: "2026-01-28T00:00:00Z",
-    author: "Engineering",
-  },
-];
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io";
+const RANKFLO_PROJECT_ID = "cllr001rankfloproject00000";
 
 function escapeXml(str: string) {
   return str
@@ -55,15 +13,45 @@ function escapeXml(str: string) {
 }
 
 export async function GET() {
-  const items = POSTS.map(
+  // Fetch live published posts from the DB
+  let posts: {
+    slug: string;
+    title: string;
+    excerpt: string | null;
+    publishedAt: Date | null;
+    author: { name: string | null } | null;
+  }[] = [];
+
+  try {
+    posts = await db.post.findMany({
+      where: {
+        projectId: RANKFLO_PROJECT_ID,
+        status: "PUBLISHED",
+        deletedAt: null,
+      },
+      select: {
+        slug: true,
+        title: true,
+        excerpt: true,
+        publishedAt: true,
+        author: { select: { name: true } },
+      },
+      orderBy: { publishedAt: "desc" },
+      take: 50,
+    });
+  } catch {
+    // DB not available — return empty feed gracefully
+  }
+
+  const items = posts.map(
     (post) => `
     <item>
       <title>${escapeXml(post.title)}</title>
       <link>${BASE_URL}/blog/${post.slug}</link>
       <guid isPermaLink="true">${BASE_URL}/blog/${post.slug}</guid>
-      <description>${escapeXml(post.excerpt)}</description>
-      <pubDate>${new Date(post.date).toUTCString()}</pubDate>
-      <author>${escapeXml(post.author)}</author>
+      <description>${escapeXml(post.excerpt ?? "")}</description>
+      <pubDate>${new Date(post.publishedAt ?? new Date()).toUTCString()}</pubDate>
+      <author>${escapeXml(post.author?.name ?? "RankFlo")}</author>
     </item>`
   ).join("");
 

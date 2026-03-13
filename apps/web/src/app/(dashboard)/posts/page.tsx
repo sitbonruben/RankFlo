@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { trpc } from "@/trpc/client";
 
@@ -31,10 +31,19 @@ export default function PostsPage() {
     page: 1,
     pageSize: 50,
     sort: "newest",
-    status: filter === "All" ? undefined : (filter as any),
+    status: filter === "All" ? undefined : (filter as never),
   });
 
   const posts = data?.items ?? [];
+
+  // Fetch 30-day view counts for all loaded slugs
+  const slugs = useMemo(() => posts.map((p) => p.slug), [posts]);
+  const from30d = useMemo(() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; }, []);
+  const viewsQ = trpc.analytics.postViews.useQuery(
+    { from: from30d, to: new Date(), slugs },
+    { enabled: slugs.length > 0, staleTime: 60_000 },
+  );
+  const viewsMap: Record<string, number> = viewsQ.data ?? {};
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,7 +51,7 @@ export default function PostsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">Posts</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Manage your blog posts.
+            {data?.total ? `${data.total} posts` : "Manage your blog posts."}
           </p>
         </div>
         <Link
@@ -111,48 +120,61 @@ export default function PostsPage() {
               <tr className="border-b border-gray-200 dark:border-gray-800">
                 <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Title</th>
                 <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
-                <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Author</th>
+                <th className="hidden px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 sm:table-cell">
+                  Views <span className="font-normal normal-case tracking-normal text-gray-400">(30d)</span>
+                </th>
                 <th className="hidden px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 lg:table-cell">Updated</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800/50">
-              {posts.map((post) => (
-                <tr key={post.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                  <td className="px-5 py-4">
-                    <Link
-                      href={`/posts/${post.slug}/edit`}
-                      className="text-sm font-medium text-gray-900 hover:text-green-600 dark:text-white dark:hover:text-accent"
-                    >
-                      {post.title || "Untitled"}
-                    </Link>
-                    <p className="text-xs text-gray-400 dark:text-gray-600">/{post.slug}</p>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium ${
-                        post.status === "PUBLISHED"
-                          ? "bg-green-50 text-green-700 border border-green-200 dark:bg-accent-1 dark:text-accent dark:border-accent/20"
-                          : post.status === "SCHEDULED"
-                          ? "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-400/10 dark:text-blue-400 dark:border-blue-400/20"
-                          : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-                      }`}
-                    >
-                      <span className={`h-1.5 w-1.5 rounded-full ${
-                        post.status === "PUBLISHED" ? "bg-green-500 dark:bg-accent"
-                        : post.status === "SCHEDULED" ? "bg-blue-400"
-                        : "bg-gray-400 dark:bg-gray-600"
-                      }`} />
-                      {STATUS_LABELS[post.status] ?? post.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <span className="text-sm text-gray-500 dark:text-gray-400">{post.author?.name ?? "—"}</span>
-                  </td>
-                  <td className="hidden px-5 py-4 lg:table-cell">
-                    <span className="text-sm text-gray-400 dark:text-gray-600">{timeAgo(post.updatedAt)}</span>
-                  </td>
-                </tr>
-              ))}
+              {posts.map((post) => {
+                const views = viewsMap[post.slug];
+                return (
+                  <tr key={post.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                    <td className="px-5 py-4">
+                      <Link
+                        href={`/posts/${post.slug}/edit`}
+                        className="text-sm font-medium text-gray-900 hover:text-green-600 dark:text-white dark:hover:text-accent"
+                      >
+                        {post.title || "Untitled"}
+                      </Link>
+                      <p className="text-xs text-gray-400 dark:text-gray-600">/{post.slug}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-medium ${
+                          post.status === "PUBLISHED"
+                            ? "bg-green-50 text-green-700 border border-green-200 dark:bg-accent-1 dark:text-accent dark:border-accent/20"
+                            : post.status === "SCHEDULED"
+                            ? "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-400/10 dark:text-blue-400 dark:border-blue-400/20"
+                            : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                        }`}
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${
+                          post.status === "PUBLISHED" ? "bg-green-500 dark:bg-accent"
+                          : post.status === "SCHEDULED" ? "bg-blue-400"
+                          : "bg-gray-400 dark:bg-gray-600"
+                        }`} />
+                        {STATUS_LABELS[post.status] ?? post.status}
+                      </span>
+                    </td>
+                    <td className="hidden px-5 py-4 text-right sm:table-cell">
+                      {viewsQ.isLoading ? (
+                        <span className="inline-block h-4 w-10 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+                      ) : views != null && views > 0 ? (
+                        <span className="text-sm font-medium tabular-nums text-gray-900 dark:text-white">
+                          {views.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-300 dark:text-gray-700">—</span>
+                      )}
+                    </td>
+                    <td className="hidden px-5 py-4 lg:table-cell">
+                      <span className="text-sm text-gray-400 dark:text-gray-600">{timeAgo(post.updatedAt)}</span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

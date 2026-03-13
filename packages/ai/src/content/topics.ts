@@ -23,6 +23,7 @@ export class TopicResearcher {
     existingTopics?: string[];
     competitors?: string[];
     count?: number;
+    contentScope?: string;
   }): Promise<TopicSuggestion[]> {
     const count = params.count ?? 10;
 
@@ -196,11 +197,16 @@ Identify content gaps and opportunities where we can outperform them.`;
     existingTopics?: string[];
     competitors?: string[];
     count?: number;
+    contentScope?: string;
   }): string {
     let message = `Suggest ${params.count ?? 10} high-impact content topics for:
 
 INDUSTRY: ${params.industry}
 TARGET AUDIENCE: ${params.targetAudience}`;
+
+    if (params.contentScope) {
+      message += `\nCONTENT FOCUS: ${params.contentScope}`;
+    }
 
     if (params.existingTopics?.length) {
       message += `\n\nEXISTING CONTENT (avoid repeating, suggest complementary topics):

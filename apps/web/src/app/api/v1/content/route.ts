@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@rankflo/db";
+import { renderBlocksToHtml, renderBlocksToPlainText } from "@/lib/blocks-to-html";
+import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * Headless CMS API — Content Delivery Endpoint
@@ -18,6 +20,7 @@ import { db } from "@rankflo/db";
  *   &sort=newest             — Sort: newest, oldest, title
  *   &format=json             — Response format: json (default), html
  *   &fields=title,slug,content — Sparse fieldsets
+ *   &updated_since=ISO_DATE  — Only posts updated after this timestamp (incremental sync)
  */
 export async function GET(req: NextRequest) {
   try {
@@ -37,10 +40,19 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // Rate limit: 120 req/min per API key
+    const rl = rateLimit(`content:${apiKey}`);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Rate limit exceeded" }, {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil((rl.resetAt - Date.now()) / 1000)) },
+      });
+    }
+
     // Look up project by API key
     const project = await db.project.findUnique({
       where: { apiKey },
-      select: { id: true, organizationId: true, status: true },
+      select: { id: true, organizationId: true, status: true, url: true },
     });
 
     if (!project) {
@@ -65,9 +77,12 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
     const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "20", 10)));
     const sort = url.searchParams.get("sort") || "newest";
-    const format = url.searchParams.get("format") || "json";
+    const format = url.searchParams.get("format") || "html";
     const fieldsParam = url.searchParams.get("fields");
     const fields = fieldsParam ? fieldsParam.split(",").map((f) => f.trim()) : null;
+    const updatedSince = url.searchParams.get("updated_since");
+    const siteUrl = project.url?.replace(/\/$/, "") ?? "";
+    const ogBase = `https://app.rankflo.io/api/v1/og?project_key=${apiKey}`;
 
     // ─── SINGLE POST BY SLUG ──────────────────────
     if (slug) {
@@ -89,7 +104,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Post not found" }, { status: 404 });
       }
 
-      const formatted = formatPost(post, format, fields);
+      const formatted = formatPost(post, format, fields, siteUrl, ogBase);
       return NextResponse.json({ data: formatted }, {
         status: 200,
         headers: corsHeaders(),
@@ -107,6 +122,12 @@ export async function GET(req: NextRequest) {
     if (locale) where.locale = locale;
     if (tag) {
       where.tags = { some: { tag: { slug: tag } } };
+    }
+    if (updatedSince) {
+      const since = new Date(updatedSince);
+      if (!isNaN(since.getTime())) {
+        where.updatedAt = { gte: since };
+      }
     }
 
     const orderBy: any = {
@@ -132,7 +153,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     const totalPages = Math.ceil(total / limit);
-    const formattedPosts = posts.map((p) => formatPost(p, format, fields));
+    const formattedPosts = posts.map((p) => formatPost(p, format, fields, siteUrl, ogBase));
 
     return NextResponse.json(
       {
@@ -170,19 +191,34 @@ function corsHeaders(): Record<string, string> {
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Authorization, Content-Type",
     "Access-Control-Max-Age": "86400",
-    "Cache-Control": "public, s-maxage=60, stale-while-revalidate=300",
+    "Cache-Control": "no-store",
   };
 }
 
-function formatPost(post: any, format: string, fields: string[] | null) {
+function formatPost(post: any, format: string, fields: string[] | null, siteUrl = "", ogBase = "") {
+  // Derive blocks from the JSONB content field
+  const blocks: any[] = post.content?.blocks ?? [];
+
+  // Generate full HTML from blocks if contentHtml is missing or a stub (<200 chars)
+  const contentHtml =
+    post.contentHtml && post.contentHtml.length > 200
+      ? post.contentHtml
+      : renderBlocksToHtml(blocks);
+
+  // Generate plain text from blocks if contentPlain is missing
+  const contentPlain =
+    post.contentPlain && post.contentPlain.length > 50
+      ? post.contentPlain
+      : renderBlocksToPlainText(blocks);
+
   const base: Record<string, any> = {
     id: post.id,
     slug: post.slug,
     title: post.title,
     status: post.status,
     excerpt: post.excerpt,
-    content: format === "html" ? post.contentHtml : post.content,
-    contentPlain: post.contentPlain,
+    content: format === "html" ? contentHtml : post.content,
+    contentPlain,
     featuredImage: post.featuredImage,
     locale: post.locale,
     readingTime: post.readingTime,
@@ -190,15 +226,8 @@ function formatPost(post: any, format: string, fields: string[] | null) {
     updatedAt: post.updatedAt,
     author: post.author,
     tags: post.tags?.map((pt: any) => pt.tag) || [],
-    seo: post.seoMeta
-      ? {
-          metaTitle: post.seoMeta.metaTitle,
-          metaDescription: post.seoMeta.metaDescription,
-          ogImage: post.seoMeta.ogImage,
-          canonicalUrl: post.seoMeta.canonicalUrl,
-          structuredData: post.seoMeta.structuredData,
-        }
-      : null,
+    coverImage: post.featuredImage, // alias for wider framework compat
+    seo: buildSeo(post, siteUrl, ogBase),
   };
 
   // Sparse fieldsets
@@ -216,4 +245,44 @@ function formatPost(post: any, format: string, fields: string[] | null) {
   }
 
   return base;
+}
+
+// ─── SEO + JSON-LD ──────────────────────────────────────────────────────────
+
+function buildSeo(post: any, siteUrl: string, ogBase = "") {
+  const postUrl = siteUrl ? `${siteUrl}/blog/${post.slug}` : undefined;
+  // Use manual ogImage → featuredImage → auto-generated OG card
+  const image =
+    post.seoMeta?.ogImage ??
+    post.featuredImage ??
+    (ogBase ? `${ogBase}&slug=${post.slug}` : undefined);
+
+  // Auto-generate BlogPosting structured data if not manually set
+  const structuredData: Record<string, unknown> = post.seoMeta?.structuredData ?? {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    ...(post.excerpt ? { description: post.excerpt } : {}),
+    ...(image ? { image } : {}),
+    ...(post.publishedAt ? { datePublished: new Date(post.publishedAt).toISOString() } : {}),
+    ...(post.updatedAt ? { dateModified: new Date(post.updatedAt).toISOString() } : {}),
+    ...(post.author?.name
+      ? { author: { "@type": "Person", name: post.author.name } }
+      : {}),
+    ...(postUrl ? { url: postUrl, mainEntityOfPage: { "@type": "WebPage", "@id": postUrl } } : {}),
+  };
+
+  return {
+    metaTitle: post.seoMeta?.metaTitle ?? null,
+    metaDescription: post.seoMeta?.metaDescription ?? null,
+    ogTitle: post.seoMeta?.ogTitle ?? null,
+    ogDescription: post.seoMeta?.ogDescription ?? null,
+    ogImage: image ?? null,
+    twitterCard: post.seoMeta?.twitterCard ?? "summary_large_image",
+    canonicalUrl: post.seoMeta?.canonicalUrl ?? postUrl ?? null,
+    noIndex: post.seoMeta?.noIndex ?? false,
+    noFollow: post.seoMeta?.noFollow ?? false,
+    keywords: post.seoMeta?.keywords ?? [],
+    structuredData,
+  };
 }

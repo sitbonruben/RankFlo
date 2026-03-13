@@ -110,6 +110,7 @@ export async function suggestTopics(
     audience?: string;
     existingTopics?: string[];
     count?: number;
+    contentScope?: string;
   },
 ): Promise<TopicSuggestion[]> {
   const provider = new AIProviderClient(config);
@@ -119,6 +120,7 @@ export async function suggestTopics(
     targetAudience: context.audience ?? "General audience",
     existingTopics: context.existingTopics,
     count: context.count,
+    contentScope: context.contentScope,
   });
 }
 
@@ -218,6 +220,8 @@ export async function chat(
     message: string;
     context?: string;
     brandVoice?: BrandVoice;
+    projectDescription?: string;
+    existingPostTitles?: string[];
   },
 ): Promise<{ reply: string }> {
   const provider = new AIProviderClient(config);
@@ -231,6 +235,16 @@ export async function chat(
   if (input.brandVoice) {
     systemParts.push(
       `\nBrand voice context:\n- Tone: ${input.brandVoice.tone.join(", ")}\n- Style: ${input.brandVoice.style}\n- Audience: ${input.brandVoice.targetAudience}\n- Industry: ${input.brandVoice.industry}`,
+    );
+  }
+
+  if (input.projectDescription) {
+    systemParts.push(`\nProject description: ${input.projectDescription}`);
+  }
+
+  if (input.existingPostTitles?.length) {
+    systemParts.push(
+      `\nExisting posts in this project (do NOT suggest or create content that duplicates these):\n${input.existingPostTitles.slice(0, 30).map((t) => `- ${t}`).join("\n")}`,
     );
   }
 
@@ -258,4 +272,68 @@ export async function chat(
   });
 
   return { reply: response.content };
+}
+
+/**
+ * Edit a post's blocks based on a natural-language instruction.
+ * Returns the updated blocks array.
+ */
+export async function editDocument(
+  config: AIConfig,
+  input: {
+    instruction: string;
+    currentBlocks: unknown[];
+    postTitle?: string;
+  },
+): Promise<{ blocks: unknown[] }> {
+  const provider = new AIProviderClient(config);
+
+  const system = `You are a blog post block editor. Edit the provided blocks based on the instruction.
+
+BLOCK TYPES (JSON format):
+- heading: {"id":"ID8","type":"heading","props":{"text":"Title","level":2,"alignment":"left"}}
+- text:    {"id":"ID8","type":"text","props":{"html":"<p>Text with <strong>bold</strong></p>","alignment":"left"}}
+- image:   {"id":"ID8","type":"image","props":{"src":"https://images.unsplash.com/photo-ID?w=1200&auto=format&fit=crop&q=80","alt":"Alt text","caption":"Caption"}}
+- quote:   {"id":"ID8","type":"quote","props":{"text":"Quote","author":"Author","style":"highlighted"}}
+- callout: {"id":"ID8","type":"callout","props":{"type":"info","title":"Pro Tip","text":"Callout body."}}
+- list:    {"id":"ID8","type":"list","props":{"items":["Item 1","Item 2"],"style":"bullet"}}
+- divider: {"id":"ID8","type":"divider","props":{"style":"line","spacing":"normal"}}
+
+RULES:
+- IDs: exactly 8 alphanumeric chars (e.g. "a3b7c1d9") — generate new ones for new blocks
+- html props: valid HTML, escape single quotes as &#39;
+- For "improve writing": improve flow and word choice, keep structure
+- For "add section": append new heading + text blocks
+- For "make shorter": condense content
+- For "add image": insert a relevant Unsplash image block (pick a real photo ID)
+- For "add callout": insert an info/tip/warning callout
+- Return ONLY a valid JSON array of blocks — no markdown fences, no explanation`;
+
+  const currentContent = JSON.stringify(input.currentBlocks).slice(0, 5000);
+
+  const response = await provider.complete({
+    system,
+    messages: [
+      {
+        role: "user",
+        content: `Post title: ${input.postTitle ?? "(untitled)"}\n\nCurrent blocks:\n${currentContent}\n\nInstruction: ${input.instruction}\n\nReturn the complete updated blocks array as JSON.`,
+      },
+    ],
+    maxTokens: 6000,
+    temperature: 0.7,
+  });
+
+  const content = response.content.trim();
+  const jsonMatch = content.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) throw new Error("AI returned invalid format — expected a JSON array");
+
+  let blocks: unknown[];
+  try {
+    blocks = JSON.parse(jsonMatch[0]) as unknown[];
+  } catch {
+    throw new Error("AI returned malformed JSON");
+  }
+
+  if (!Array.isArray(blocks)) throw new Error("AI response was not an array");
+  return { blocks };
 }

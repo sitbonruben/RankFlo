@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { createHmac } from "crypto";
 
 import {
   createPostSchema,
@@ -9,8 +10,95 @@ import {
 
 import { requirePermission, requireRole } from "../middleware/rbac";
 import { router, orgProcedure } from "../trpc";
+import type { PrismaClient } from "@rankflo/db";
+
+// ─── Webhook delivery ────────────────────────────────────────────────────────
+// Fire-and-forget: finds active webhooks for the org matching the event,
+// delivers them with HMAC-SHA256 signature, logs the delivery.
+async function fireWebhooks(
+  db: PrismaClient,
+  organizationId: string,
+  event: string,
+  payload: Record<string, unknown>,
+) {
+  try {
+    const webhooks = await db.webhook.findMany({
+      where: {
+        organizationId,
+        isActive: true,
+        events: { has: event },
+      },
+    });
+
+    if (webhooks.length === 0) return;
+
+    const body = JSON.stringify({ event, timestamp: new Date().toISOString(), data: payload });
+
+    await Promise.allSettled(
+      webhooks.map(async (webhook) => {
+        const sig = createHmac("sha256", webhook.secret).update(body).digest("hex");
+        let statusCode: number | null = null;
+        let responseBody: string | null = null;
+        let status: "SUCCESS" | "FAILED" = "FAILED";
+
+        try {
+          const res = await fetch(webhook.url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-RankFlo-Event": event,
+              "X-RankFlo-Signature": `sha256=${sig}`,
+            },
+            body,
+            signal: AbortSignal.timeout(10_000),
+          });
+          statusCode = res.status;
+          responseBody = await res.text().catch(() => null);
+          status = res.ok ? "SUCCESS" : "FAILED";
+        } catch {
+          // network error — leave status FAILED
+        }
+
+        await db.webhookDelivery.create({
+          data: {
+            webhookId: webhook.id,
+            event,
+            payload: payload as object,
+            statusCode,
+            responseBody,
+            status,
+            attempts: 1,
+            completedAt: new Date(),
+          },
+        });
+      }),
+    );
+  } catch {
+    // Never let webhook errors surface to the caller
+  }
+}
 
 export const postRouter = router({
+  stats: orgProcedure
+    .input(z.object({ projectId: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const where = {
+        organizationId: ctx.organizationId,
+        deletedAt: null,
+        ...(input?.projectId ? { projectId: input.projectId } : {}),
+      };
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const [total, published, draft, scheduled, publishedToday] = await Promise.all([
+        ctx.db.post.count({ where }),
+        ctx.db.post.count({ where: { ...where, status: "PUBLISHED" } }),
+        ctx.db.post.count({ where: { ...where, status: "DRAFT" } }),
+        ctx.db.post.count({ where: { ...where, status: "SCHEDULED" } }),
+        ctx.db.post.count({ where: { ...where, status: "PUBLISHED", publishedAt: { gte: today } } }),
+      ]);
+      return { total, published, draft, scheduled, publishedToday };
+    }),
+
   list: orgProcedure
     .input(listPostsSchema)
     .query(async ({ ctx, input }) => {
@@ -169,7 +257,7 @@ export const postRouter = router({
     .use(requirePermission("post:update"))
     .input(updatePostSchema)
     .mutation(async ({ ctx, input }) => {
-      const { id, tagIds, changelog, ...data } = input;
+      const { id, tagIds, changelog, metaTitle, metaDescription, ogImage, ...data } = input;
 
       const existing = await ctx.db.post.findFirst({
         where: { id, organizationId: ctx.organizationId, deletedAt: null },
@@ -225,6 +313,40 @@ export const postRouter = router({
         },
       });
 
+      // Upsert seoMeta if any SEO fields were provided
+      const hasSeoChanges = metaTitle !== undefined || metaDescription !== undefined || ogImage !== undefined;
+      if (hasSeoChanges) {
+        await ctx.db.seoMeta.upsert({
+          where: { postId: id },
+          create: { postId: id, metaTitle, metaDescription, ogImage },
+          update: {
+            ...(metaTitle !== undefined && { metaTitle }),
+            ...(metaDescription !== undefined && { metaDescription }),
+            ...(ogImage !== undefined && { ogImage }),
+          },
+        });
+      }
+
+      // Fire webhooks when status changes to PUBLISHED
+      const isNowPublished = data.status === "PUBLISHED";
+      const wasAlreadyPublished = existing.status === "PUBLISHED";
+      const event = isNowPublished
+        ? wasAlreadyPublished
+          ? "post.updated"
+          : "post.published"
+        : null;
+
+      if (event) {
+        void fireWebhooks(ctx.db, ctx.organizationId, event, {
+          id: post.id,
+          slug: post.slug,
+          title: post.title,
+          status: post.status,
+          publishedAt: post.publishedAt,
+          updatedAt: post.updatedAt,
+        });
+      }
+
       return post;
     }),
 
@@ -264,12 +386,26 @@ export const postRouter = router({
     .use(requirePermission("post:publish"))
     .input(z.object({ id: z.string().cuid() }))
     .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.post.findFirst({
+        where: { id: input.id, organizationId: ctx.organizationId, deletedAt: null },
+        select: { status: true },
+      });
+
       const post = await ctx.db.post.update({
         where: { id: input.id },
         data: {
           status: "PUBLISHED",
           publishedAt: new Date(),
         },
+      });
+
+      void fireWebhooks(ctx.db, ctx.organizationId, "post.published", {
+        id: post.id,
+        slug: post.slug,
+        title: post.title,
+        status: post.status,
+        publishedAt: post.publishedAt,
+        updatedAt: post.updatedAt,
       });
 
       return post;

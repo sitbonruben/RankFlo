@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 
 import "@/styles/globals.css";
 import { TRPCProvider } from "@/trpc/client";
@@ -96,6 +97,12 @@ export default function RootLayout({
         <ThemeProvider>
           <TRPCProvider>{children}</TRPCProvider>
         </ThemeProvider>
+        {/* RankFlo self-tracking — records traffic on app.rankflo.io */}
+        <Script
+          src="/tracker.js"
+          data-project-key="blg_a97ccb6698560cb2bd23a4b8a9e8411f460bcc2f0131aa1f"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );

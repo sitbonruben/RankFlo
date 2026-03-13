@@ -7,12 +7,14 @@ import { LeftPanel } from "@/components/editor/panels/left-panel";
 import { RightPanel } from "@/components/editor/panels/right-panel";
 import { useEditorShortcuts } from "@/hooks/use-editor-shortcuts";
 import { useAutoSave } from "@/hooks/use-auto-save";
+import { useEditorStore } from "@/stores/editor-store";
 
 // ─── Editor Layout ──────────────────────────────────────
 
 export function EditorLayout() {
   useEditorShortcuts();
   useAutoSave();
+  const rightPanelOpen = useEditorStore((s) => s.rightPanelOpen);
 
   return (
     <DndProvider>
@@ -21,7 +23,7 @@ export function EditorLayout() {
         <div className="flex flex-1 overflow-hidden">
           <LeftPanel />
           <EditorCanvas />
-          <RightPanel />
+          {rightPanelOpen && <RightPanel />}
         </div>
       </div>
     </DndProvider>

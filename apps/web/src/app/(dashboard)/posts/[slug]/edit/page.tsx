@@ -21,6 +21,7 @@ export default function EditPostPage() {
     if (post) {
       hydrate({
         postId: post.id,
+        projectId: post.projectId ?? null,
         title: post.title,
         slug: post.slug,
         excerpt: post.excerpt || "",

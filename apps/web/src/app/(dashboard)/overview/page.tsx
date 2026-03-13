@@ -15,18 +15,60 @@ function timeAgo(date: Date | string): string {
   return `${days}d ago`;
 }
 
+function StatCard({
+  label,
+  value,
+  href,
+  isLoading,
+  accent,
+}: {
+  label: string;
+  value: number | string;
+  href: string;
+  isLoading: boolean;
+  accent?: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className={`rounded-xl border p-5 transition-colors hover:border-gray-300 dark:hover:border-gray-700 ${
+        accent
+          ? "border-green-200 bg-green-50 dark:border-green-900/30 dark:bg-green-950/20"
+          : "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950"
+      }`}
+    >
+      <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
+      <div className="mt-2">
+        {isLoading ? (
+          <span className="inline-block h-8 w-12 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+        ) : (
+          <span className={`text-3xl font-semibold tracking-tight ${accent ? "text-green-700 dark:text-green-400" : "text-gray-900 dark:text-white"}`}>
+            {value}
+          </span>
+        )}
+      </div>
+    </Link>
+  );
+}
+
 export default function OverviewPage() {
+  const { data: stats, isLoading: statsLoading } = trpc.post.stats.useQuery({});
   const { data: postsData, isLoading: postsLoading } = trpc.post.list.useQuery({
     page: 1,
     pageSize: 5,
     sort: "newest",
   });
   const { data: projectsData } = trpc.project.list.useQuery({ page: 1, pageSize: 1 });
+  const { data: analyticsData } = trpc.analytics.overview.useQuery({
+    from: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    to: new Date(),
+  });
 
   const recentPosts = postsData?.items ?? [];
   const hasProjects = (projectsData?.total ?? 0) > 0;
   const firstProject = projectsData?.items?.[0];
   const hasAutopilot = firstProject?.autopilotEnabled ?? false;
+  const hasAnalytics = (analyticsData?.pageViews ?? 0) > 0;
 
   return (
     <div className="flex flex-col gap-8">
@@ -49,35 +91,23 @@ export default function OverviewPage() {
         </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {[
-          { label: "Total posts", value: postsData?.total ?? "—", href: "/posts" },
-          { label: "Published", value: postsData?.items.filter(p => p.status === "PUBLISHED").length ?? "—", href: "/posts" },
-          { label: "Drafts", value: postsData?.items.filter(p => p.status === "DRAFT").length ?? "—", href: "/posts" },
-        ].map((stat) => (
-          <Link
-            key={stat.label}
-            href={stat.href}
-            className="rounded-xl border border-gray-200 bg-white p-5 transition-colors hover:border-gray-300 dark:border-gray-800 dark:bg-gray-950 dark:hover:border-gray-700"
-          >
-            <p className="text-sm text-gray-500">{stat.label}</p>
-            <div className="mt-2">
-              <span className="text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
-                {postsLoading ? <span className="inline-block h-8 w-12 animate-pulse rounded bg-gray-100 dark:bg-gray-800" /> : stat.value}
-              </span>
-            </div>
-          </Link>
-        ))}
+      {/* Stats — 4 cards with real counts */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <StatCard label="Total posts" value={stats?.total ?? "—"} href="/posts" isLoading={statsLoading} />
+        <StatCard label="Published" value={stats?.published ?? "—"} href="/posts" isLoading={statsLoading} accent />
+        <StatCard label="Drafts" value={stats?.draft ?? "—"} href="/posts" isLoading={statsLoading} />
+        <StatCard label="Scheduled" value={stats?.scheduled ?? "—"} href="/calendar" isLoading={statsLoading} />
       </div>
 
       {/* Growth Tips */}
       <GrowthTips
         hasProjects={hasProjects}
         hasAutopilot={hasAutopilot}
-        postCount={postsData?.total ?? 0}
+        postCount={stats?.total ?? 0}
+        publishedCount={stats?.published ?? 0}
         projectId={firstProject?.id}
         apiKey={firstProject?.apiKey}
+        hasAnalytics={hasAnalytics}
       />
 
       {/* Content grid */}
@@ -130,10 +160,12 @@ export default function OverviewPage() {
                       className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${
                         post.status === "PUBLISHED"
                           ? "bg-green-50 text-green-700 border border-green-200 dark:bg-accent-1 dark:text-accent dark:border-accent/20"
+                          : post.status === "SCHEDULED"
+                          ? "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950 dark:text-blue-400 dark:border-blue-800"
                           : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                       }`}
                     >
-                      {post.status === "PUBLISHED" ? "Published" : post.status === "DRAFT" ? "Draft" : post.status}
+                      {post.status === "PUBLISHED" ? "Published" : post.status === "DRAFT" ? "Draft" : post.status === "SCHEDULED" ? "Scheduled" : post.status}
                     </span>
                   </div>
                 </Link>
@@ -151,7 +183,8 @@ export default function OverviewPage() {
             {[
               { label: "Create a post", href: "/posts/new", icon: "M12 4.5v15m7.5-7.5h-15" },
               { label: "Connect a project", href: "/projects/new", icon: "M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" },
-              { label: "Upload media", href: "/media", icon: "M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" },
+              { label: "Schedule content", href: "/calendar", icon: "M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" },
+              { label: "View analytics", href: "/analytics", icon: "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" },
               { label: "Growth Hub", href: "/growth", icon: "M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" },
               { label: "Invite team member", href: "/settings/team", icon: "M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z" },
             ].map((action) => (

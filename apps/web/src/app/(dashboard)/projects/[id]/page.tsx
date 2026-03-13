@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/trpc/client";
 
 type Tab = "content" | "deployments" | "autopilot" | "branding" | "settings";
@@ -248,21 +248,46 @@ export default function ProjectDetailPage() {
   const [autopilotContentType, setAutopilotContentType] = useState("blog-post");
   const [autopilotAutoPublish, setAutopilotAutoPublish] = useState(false);
 
+  // AI context form state
+  const [aiDescription, setAiDescription] = useState("");
+  const [aiContentScope, setAiContentScope] = useState("");
+  const [aiContextSaved, setAiContextSaved] = useState(false);
+
   const { data: project, isLoading, refetch } = trpc.project.getById.useQuery({ id });
+
+  const updateProject = trpc.project.update.useMutation({
+    onSuccess: () => {
+      refetch();
+      setAiContextSaved(true);
+      setTimeout(() => setAiContextSaved(false), 2000);
+    },
+  });
 
   const updateAutopilot = trpc.project.updateAutopilot.useMutation({
     onSuccess: () => refetch(),
   });
 
-  // Sync autopilot form from loaded project
+  // Sync form state from loaded project
   useEffect(() => {
     if (project) {
       setAutopilotEnabled(project.autopilotEnabled ?? false);
       setAutopilotFrequency(project.autopilotFrequency ?? 2);
       setAutopilotContentType(project.autopilotContentType ?? "blog-post");
       setAutopilotAutoPublish(project.autopilotAutoPublish ?? false);
+      setAiDescription(project.description ?? "");
+      const bs = project.brandStyle as Record<string, unknown> | null;
+      setAiContentScope(typeof bs?.contentScope === "string" ? bs.contentScope : "");
     }
   }, [project]);
+
+  const handleSaveAiContext = () => {
+    const existingBrandStyle = (project?.brandStyle ?? {}) as Record<string, unknown>;
+    updateProject.mutate({
+      id,
+      description: aiDescription || undefined,
+      brandStyle: { ...existingBrandStyle, contentScope: aiContentScope },
+    });
+  };
 
   const handleSaveAutopilot = () => {
     updateAutopilot.mutate({
@@ -273,6 +298,21 @@ export default function ProjectDetailPage() {
       autopilotAutoPublish,
     });
   };
+
+  const router = useRouter();
+  const [aiCreating, setAiCreating] = useState(false);
+  const createPostWithAI = trpc.ai.createPost.useMutation();
+
+  const handleCreateWithAI = useCallback(async () => {
+    setAiCreating(true);
+    try {
+      const result = await createPostWithAI.mutateAsync({ projectId: id });
+      router.push(`/posts/${result.slug}/edit`);
+    } catch (err) {
+      console.error("AI create post failed:", err);
+      setAiCreating(false);
+    }
+  }, [id, createPostWithAI, router]);
 
   const copyApiKey = () => {
     if (project?.apiKey) {
@@ -372,6 +412,26 @@ export default function ProjectDetailPage() {
             </div>
           </div>
         </div>
+        <button
+          onClick={() => void handleCreateWithAI()}
+          disabled={aiCreating}
+          className="inline-flex h-9 items-center gap-2 rounded-lg border border-green-500/30 bg-green-500/5 px-4 text-sm font-semibold text-green-600 transition-colors hover:bg-green-500/10 disabled:opacity-60 dark:border-accent/30 dark:bg-accent/5 dark:text-accent dark:hover:bg-accent/10"
+          title="Research a unique topic and generate a full blog post with AI"
+        >
+          {aiCreating ? (
+            <>
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-green-500/30 border-t-green-500 dark:border-accent/30 dark:border-t-accent" />
+              Generating…
+            </>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M7 1.5l1.4 2.8L12 5l-2.5 2.1.6 3.4L7 9.1 4 10.5l.6-3.4L2 5l3.6-.7L7 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" fill="currentColor" fillOpacity="0.15" />
+              </svg>
+              Write with AI
+            </>
+          )}
+        </button>
         <Link
           href="/posts/new"
           className="inline-flex h-9 items-center gap-2 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-700 dark:bg-accent dark:text-black dark:hover:bg-accent-9"
@@ -737,6 +797,54 @@ export default function ProjectDetailPage() {
       {/* Settings Tab */}
       {tab === "settings" && (
         <div className="flex flex-col gap-6 max-w-2xl">
+          {/* AI Context */}
+          <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-950">
+            <h3 className="mb-1 text-sm font-semibold text-gray-900 dark:text-white">AI Context</h3>
+            <p className="mb-4 text-xs text-gray-500">
+              Help the AI understand your project. This context is used when generating posts, suggesting topics, and answering questions in the editor.
+            </p>
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  Project description
+                </label>
+                <textarea
+                  value={aiDescription}
+                  onChange={(e) => setAiDescription(e.target.value)}
+                  rows={2}
+                  placeholder="e.g. RankFlo is a headless CMS for developers who want SEO-optimized blog content."
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none dark:border-gray-800 dark:bg-gray-900 dark:text-white dark:placeholder-gray-600"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                  Content scope <span className="ml-1 text-gray-400">(what topics should AI focus on?)</span>
+                </label>
+                <textarea
+                  value={aiContentScope}
+                  onChange={(e) => setAiContentScope(e.target.value)}
+                  rows={3}
+                  placeholder="e.g. Focus on SEO tips, headless CMS tutorials, Next.js blog integrations, and content marketing for SaaS companies. Avoid social media and paid ads topics."
+                  className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none dark:border-gray-800 dark:bg-gray-900 dark:text-white dark:placeholder-gray-600"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                {aiContextSaved && (
+                  <span className="text-xs text-green-600 dark:text-accent">Saved!</span>
+                )}
+                <div className="ml-auto">
+                  <button
+                    onClick={handleSaveAiContext}
+                    disabled={updateProject.isPending}
+                    className="inline-flex h-8 items-center gap-2 rounded-lg bg-green-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:opacity-50 dark:bg-accent dark:text-black dark:hover:bg-accent-9"
+                  >
+                    {updateProject.isPending ? "Saving…" : "Save AI context"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Integration */}
           <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-950">
             <h3 className="mb-4 text-sm font-semibold text-gray-900 dark:text-white">Integration</h3>

@@ -17,6 +17,7 @@ interface EditorState {
   // Document
   document: EditorDocument;
   postId: string | null;
+  projectId: string | null;
   title: string;
   slug: string;
   excerpt: string;
@@ -36,6 +37,7 @@ interface EditorState {
   isDirty: boolean;
   isSaving: boolean;
   lastSavedAt: Date | null;
+  rightPanelOpen: boolean;
 
   // Actions
   setDocument: (doc: EditorDocument) => void;
@@ -49,9 +51,11 @@ interface EditorState {
   setMetaDescription: (desc: string) => void;
   setOgImage: (url: string) => void;
   setPostId: (id: string) => void;
+  setProjectId: (id: string | null) => void;
   setIsSaving: (saving: boolean) => void;
   setLastSavedAt: (date: Date) => void;
   markClean: () => void;
+  setRightPanelOpen: (open: boolean) => void;
 
   // Block actions
   addBlock: (type: BlockType, index?: number) => void;
@@ -69,6 +73,7 @@ interface EditorState {
   // Hydrate from API
   hydrate: (data: {
     postId: string;
+    projectId?: string | null;
     title: string;
     slug: string;
     excerpt: string;
@@ -90,6 +95,7 @@ interface EditorState {
 const initialState = {
   document: createEmptyDocument(),
   postId: null,
+  projectId: null,
   title: "",
   slug: "",
   excerpt: "",
@@ -105,6 +111,7 @@ const initialState = {
   isDirty: false,
   isSaving: false,
   lastSavedAt: null,
+  rightPanelOpen: true,
 };
 
 // ─── Store ─────────────────────────────────────────────
@@ -119,15 +126,17 @@ export const useEditorStore = create<EditorState>()(
       setSlug: (slug) => set({ slug, isDirty: true }),
       setExcerpt: (excerpt) => set({ excerpt, isDirty: true }),
       setFeaturedImage: (url) => set({ featuredImage: url, isDirty: true }),
-      setStatus: (status) => set({ status }),
+      setStatus: (status) => set({ status, isDirty: true }),
       setTagIds: (ids) => set({ tagIds: ids, isDirty: true }),
       setMetaTitle: (title) => set({ metaTitle: title, isDirty: true }),
       setMetaDescription: (desc) => set({ metaDescription: desc, isDirty: true }),
       setOgImage: (url) => set({ ogImage: url, isDirty: true }),
       setPostId: (id) => set({ postId: id }),
+      setProjectId: (id) => set({ projectId: id }),
       setIsSaving: (saving) => set({ isSaving: saving }),
       setLastSavedAt: (date) => set({ lastSavedAt: date }),
       markClean: () => set({ isDirty: false }),
+      setRightPanelOpen: (open) => set({ rightPanelOpen: open }),
 
       // Block CRUD
       addBlock: (type, index) => {
@@ -217,6 +226,7 @@ export const useEditorStore = create<EditorState>()(
           Array.isArray((data.content as EditorDocument).blocks);
         return set({
           postId: data.postId,
+          projectId: data.projectId ?? null,
           title: data.title,
           slug: data.slug,
           excerpt: data.excerpt || "",

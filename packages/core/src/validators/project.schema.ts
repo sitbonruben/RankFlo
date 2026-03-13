@@ -39,7 +39,8 @@ export const brandStyleSchema = z.object({
   spacing: z.string().optional(),
   shadowStyle: z.enum(["none", "subtle", "medium", "dramatic"]).optional(),
   layoutStyle: z.enum(["minimal", "classic", "modern", "bold"]).optional(),
-});
+  contentScope: z.string().optional(),
+}).passthrough(); // allow extra keys (AI brand voice fields) to pass through
 
 export const integrationConfigSchema = z.object({
   // Git
