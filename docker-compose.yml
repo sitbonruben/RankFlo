@@ -1,0 +1,53 @@
+version: "3.9"
+
+# RankFlo — self-hosted setup
+# 1. Copy .env.example to .env and fill in the required values
+# 2. Run: docker compose up -d
+# 3. Open http://localhost:3000
+
+services:
+  web:
+    image: ghcr.io/sitbonruben/rankflo:latest
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rankflo}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-rankflo}
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-rankflo}
+      POSTGRES_USER: ${POSTGRES_USER:-rankflo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rankflo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
