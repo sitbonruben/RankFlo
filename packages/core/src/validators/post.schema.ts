@@ -28,6 +28,7 @@ export const createPostSchema = z.object({
   scheduledAt: z.coerce.date().optional(),
   locale: z.string().default("en"),
   tagIds: z.array(z.string()).max(CONTENT.maxTagsPerPost).optional(),
+  projectId: z.string().optional(),
 });
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 
@@ -55,6 +56,8 @@ export const updatePostSchema = z.object({
   metaTitle: z.string().max(60).nullable().optional(),
   metaDescription: z.string().max(160).nullable().optional(),
   ogImage: z.string().url().nullable().optional(),
+  // Project association
+  projectId: z.string().nullable().optional(),
 });
 export type UpdatePostInput = z.infer<typeof updatePostSchema>;
 

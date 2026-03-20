@@ -153,6 +153,9 @@ export const postRouter = router({
             tags: {
               include: { tag: true },
             },
+            project: {
+              select: { id: true, name: true },
+            },
             _count: { select: { comments: true } },
           },
         }),
@@ -635,4 +638,58 @@ export const postRouter = router({
         };
       });
     }),
+
+  recentActivity: orgProcedure.query(async ({ ctx }) => {
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+    const [recentlyPublished, upcomingScheduled] = await Promise.all([
+      ctx.db.post.findMany({
+        where: {
+          organizationId: ctx.organizationId,
+          status: "PUBLISHED",
+          publishedAt: { gte: sevenDaysAgo },
+          deletedAt: null,
+        },
+        select: { id: true, title: true, publishedAt: true, slug: true },
+        orderBy: { publishedAt: "desc" },
+        take: 15,
+      }),
+      ctx.db.post.findMany({
+        where: {
+          organizationId: ctx.organizationId,
+          status: "SCHEDULED",
+          scheduledAt: { gte: now, lte: threeDaysFromNow },
+          deletedAt: null,
+        },
+        select: { id: true, title: true, scheduledAt: true, slug: true },
+        orderBy: { scheduledAt: "asc" },
+        take: 10,
+      }),
+    ]);
+
+    return {
+      notifications: [
+        ...recentlyPublished.map((p) => ({
+          id: `published-${p.id}`,
+          type: "published" as const,
+          title: p.title || "Untitled",
+          message: "Post published",
+          date: p.publishedAt!,
+          href: `/posts/${p.slug}/edit`,
+        })),
+        ...upcomingScheduled.map((p) => ({
+          id: `scheduled-${p.id}`,
+          type: "scheduled" as const,
+          title: p.title || "Untitled",
+          message: "Publishing soon",
+          date: p.scheduledAt!,
+          href: `/posts/${p.slug}/edit`,
+        })),
+      ].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      ),
+    };
+  }),
 });

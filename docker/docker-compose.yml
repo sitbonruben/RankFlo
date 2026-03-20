@@ -21,6 +21,17 @@ services:
       - proxy
     restart: unless-stopped
 
+  docs:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.docs
+    ports:
+      - "127.0.0.1:3003:3001"
+    networks:
+      - default
+      - proxy
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     ports:

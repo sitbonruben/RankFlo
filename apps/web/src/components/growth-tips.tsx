@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 interface Tip {
@@ -49,6 +49,23 @@ const PRIORITY_LABELS = {
   low: "Tip",
 };
 
+// All possible tip IDs — used to compute progress even when tips are auto-resolved
+const ALL_TIP_IDS = [
+  "connect-project",
+  "enable-autopilot",
+  "add-tracker",
+  "more-published",
+  "content-api",
+  "sitemap",
+  "llms-txt",
+  "rss-feed",
+  "structured-data",
+  "internal-links",
+  "mcp-claude",
+];
+
+const LS_KEY = "growth-tips-dismissed";
+
 export function GrowthTips({
   hasProjects,
   hasAutopilot,
@@ -60,6 +77,23 @@ export function GrowthTips({
   appUrl = "https://app.rankflo.io",
 }: GrowthTipsProps) {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      if (saved) setDismissed(new Set(JSON.parse(saved)));
+    } catch {}
+    setHydrated(true);
+  }, []);
+
+  const dismiss = (id: string) => {
+    setDismissed((prev) => {
+      const next = new Set([...prev, id]);
+      try { localStorage.setItem(LS_KEY, JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
 
   const tips: Tip[] = [];
 
@@ -180,9 +214,18 @@ export function GrowthTips({
     action: { label: "View MCP setup", href: "/settings/integrations" },
   });
 
-  const visible = tips.filter(t => !dismissed.has(t.id));
+  // ── Progress calculation ───────────────────────────────────────────────────
+  // A tip is "done" if the user dismissed it OR if it's no longer applicable
+  // (its condition is already met, so it never appeared in the generated list).
+  const currentTipIds = new Set(tips.map((t) => t.id));
+  const completedCount = ALL_TIP_IDS.filter(
+    (id) => dismissed.has(id) || !currentTipIds.has(id),
+  ).length;
+  const pct = Math.round((completedCount / ALL_TIP_IDS.length) * 100);
 
-  if (visible.length === 0) return null;
+  const visible = tips.filter((t) => !dismissed.has(t.id));
+
+  if (!hydrated || visible.length === 0) return null;
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
@@ -192,12 +235,24 @@ export function GrowthTips({
           <span className="text-sm font-semibold text-gray-900 dark:text-white">Growth Recommendations</span>
           <span className="rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500 dark:bg-gray-800 dark:text-gray-400">{visible.length}</span>
         </div>
-        <Link href="/growth" className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-          Growth Hub →
-        </Link>
+        <div className="flex items-center gap-3">
+          {/* Progress */}
+          <div className="flex items-center gap-1.5">
+            <div className="h-1.5 w-20 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+              <div
+                className="h-full rounded-full bg-green-500 dark:bg-accent transition-all duration-500"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <span className="text-xs font-medium text-gray-400 dark:text-gray-500">{pct}%</span>
+          </div>
+          <Link href="/growth" className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            Growth Hub →
+          </Link>
+        </div>
       </div>
       <div className="divide-y divide-gray-100 dark:divide-gray-800/50">
-        {visible.map(tip => (
+        {visible.map((tip) => (
           <div key={tip.id} className="flex items-start gap-3 px-5 py-4">
             <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border ${PRIORITY_COLORS[tip.priority]}`}>
               <SvgIcon path={tip.icon} className={`h-3.5 w-3.5 ${PRIORITY_ICON_COLORS[tip.priority]}`} />
@@ -212,7 +267,7 @@ export function GrowthTips({
                   <p className="mt-0.5 text-xs text-gray-500 leading-relaxed">{tip.description}</p>
                 </div>
                 <button
-                  onClick={() => setDismissed(prev => new Set([...prev, tip.id]))}
+                  onClick={() => dismiss(tip.id)}
                   className="shrink-0 text-gray-300 hover:text-gray-500 dark:text-gray-700 dark:hover:text-gray-500"
                   title="Dismiss"
                 >

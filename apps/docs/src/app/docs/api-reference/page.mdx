@@ -1,175 +1,577 @@
 # API Reference
 
-The RankFlo REST API lets you programmatically manage posts, pages, media, and more. All endpoints return JSON and require authentication.
+The RankFlo **Content Delivery API** lets you fetch published posts, search content, and embed analytics tracking into any website or app.
+
+All endpoints are public, CORS-enabled, and require only a **Project API Key** — no server-side auth needed.
+
+---
 
 ## Authentication
 
-Authenticate using API keys. Generate a key from **Settings > API Keys** in your RankFlo dashboard.
+Every request needs your **Project API Key** (`blg_xxx`). Get yours from **Dashboard → Projects → your project**.
 
-Include the key in the `Authorization` header:
+Two ways to pass it:
 
 ```bash
-curl -H "Authorization: Bearer bstr_live_abc123..." \
-  https://api.rankflo.io/v1/posts
+# 1. Query parameter (simplest — safe for frontend use)
+GET /api/v1/content?project_key=blg_xxx
+
+# 2. Authorization header
+GET /api/v1/content
+Authorization: Bearer blg_xxx
 ```
 
-API keys come in two types:
+> Project keys only return **published** posts. Drafts and scheduled posts are never exposed.
 
-| Type | Prefix | Access |
-|------|--------|--------|
-| Live | `bstr_live_` | Full read/write access |
-| Test | `bstr_test_` | Read-only, sandbox data |
-
-> Keep your API keys secret. Do not commit them to version control or expose them in client-side code.
+---
 
 ## Base URL
 
-All API requests use the following base URL:
-
 ```
-https://api.rankflo.io/v1
+https://app.rankflo.io
 ```
 
-For self-hosted instances, replace with your own domain:
+For self-hosted instances, replace with your own domain. All endpoints are at `/api/v1/`.
+
+---
+
+## Rate Limits
+
+**120 requests per minute** per project key, using a sliding window.
+
+When exceeded, the API returns:
 
 ```
-https://your-domain.com/api/v1
+HTTP 429 Too Many Requests
+Retry-After: 15
 ```
+
+---
 
 ## Endpoints
 
-### Posts
+### GET /api/v1/content
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/v1/posts` | List all posts |
-| `GET` | `/v1/posts/:id` | Get a single post |
-| `POST` | `/v1/posts` | Create a post |
-| `PATCH` | `/v1/posts/:id` | Update a post |
-| `DELETE` | `/v1/posts/:id` | Delete a post |
+Fetch published posts for a project.
 
-**Example: Create a post**
+#### List posts
 
 ```bash
-curl -X POST https://api.rankflo.io/v1/posts \
-  -H "Authorization: Bearer bstr_live_abc123..." \
-  -H "Content-Type: application/json" \
-  -d '{
-    "title": "Hello World",
-    "content": "This is my first post.",
-    "status": "published"
-  }'
+curl "https://app.rankflo.io/api/v1/content?project_key=blg_xxx"
+```
+
+**Query parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `project_key` | string | — | **Required.** Your project API key |
+| `page` | number | `1` | Page number |
+| `limit` | number | `20` | Posts per page (max `100`) |
+| `sort` | string | `newest` | `newest` · `oldest` · `title` · `updated` |
+| `tag` | string | — | Filter by tag slug |
+| `locale` | string | — | Filter by locale (e.g. `en`, `fr`) |
+| `format` | string | `html` | `html` — content as HTML string · `json` — raw Tiptap blocks |
+| `fields` | string | — | Comma-separated sparse fieldset (e.g. `title,slug,excerpt`) |
+| `updated_since` | string | — | ISO 8601 timestamp — returns only posts updated after this time (incremental sync) |
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "id": "abc123",
+      "slug": "my-first-post",
+      "title": "My First Post",
+      "status": "PUBLISHED",
+      "excerpt": "A short summary of the post.",
+      "content": "<p>Full HTML content...</p>",
+      "contentPlain": "Full plain text content...",
+      "featuredImage": "https://...",
+      "locale": "en",
+      "readingTime": 5,
+      "publishedAt": "2026-03-15T09:00:00.000Z",
+      "updatedAt": "2026-03-15T09:00:00.000Z",
+      "author": {
+        "id": "user_xyz",
+        "name": "Jane Smith",
+        "avatarUrl": "https://..."
+      },
+      "tags": [
+        { "name": "SEO", "slug": "seo", "color": "#22c55e" }
+      ],
+      "seo": {
+        "metaTitle": "My First Post — Blog",
+        "metaDescription": "A short summary...",
+        "ogImage": "https://...",
+        "canonicalUrl": "https://yourdomain.com/blog/my-first-post",
+        "structuredData": { ... }
+      }
+    }
+  ],
+  "pagination": {
+    "total": 38,
+    "page": 1,
+    "limit": 20,
+    "totalPages": 2,
+    "hasNext": true,
+    "hasPrev": false
+  }
+}
+```
+
+---
+
+#### Get single post by slug
+
+```bash
+curl "https://app.rankflo.io/api/v1/content?project_key=blg_xxx&slug=my-first-post"
 ```
 
 **Response:**
 
 ```json
 {
-  "id": "post_01abc",
-  "title": "Hello World",
-  "slug": "hello-world",
-  "content": "This is my first post.",
-  "status": "published",
-  "authorId": "user_01xyz",
-  "createdAt": "2025-01-15T10:00:00Z",
-  "updatedAt": "2025-01-15T10:00:00Z"
-}
-```
-
-### Pages
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/v1/pages` | List all pages |
-| `GET` | `/v1/pages/:id` | Get a single page |
-| `POST` | `/v1/pages` | Create a page |
-| `PATCH` | `/v1/pages/:id` | Update a page |
-| `DELETE` | `/v1/pages/:id` | Delete a page |
-
-### Media
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/v1/media` | List uploaded media |
-| `POST` | `/v1/media/upload` | Upload a file |
-| `DELETE` | `/v1/media/:id` | Delete a file |
-
-**Upload limit:** 50 MB per file. Supported formats: JPEG, PNG, WebP, GIF, SVG, MP4, PDF.
-
-### Search
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/v1/search` | Full-text search across posts and pages |
-
-**Query parameters:**
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `q` | `string` | Search query (required) |
-| `type` | `string` | Filter by `post` or `page` |
-| `limit` | `number` | Results per page (default 20, max 100) |
-| `offset` | `number` | Pagination offset |
-
-### Analytics
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/v1/analytics/overview` | Site-wide analytics summary |
-| `GET` | `/v1/analytics/posts/:id` | Analytics for a single post |
-
-## Pagination
-
-List endpoints support cursor-based pagination:
-
-```bash
-GET /v1/posts?limit=10&cursor=post_01abc
-```
-
-The response includes a `nextCursor` field. Pass it as `cursor` in the next request to retrieve the following page. When `nextCursor` is `null`, you have reached the end.
-
-```json
-{
-  "data": [...],
-  "nextCursor": "post_01xyz",
-  "hasMore": true
-}
-```
-
-## Rate Limits
-
-API requests are rate-limited to protect the platform:
-
-| Plan | Requests per minute |
-|------|-------------------|
-| Free | 60 |
-| Pro | 300 |
-| Enterprise | 1,000 |
-
-When rate-limited, the API returns a `429 Too Many Requests` response with a `Retry-After` header indicating seconds until the limit resets.
-
-## Error Handling
-
-The API uses standard HTTP status codes. Error responses include a JSON body:
-
-```json
-{
-  "error": {
-    "code": "not_found",
-    "message": "The requested post does not exist.",
-    "status": 404
+  "data": {
+    "id": "abc123",
+    "slug": "my-first-post",
+    "title": "My First Post",
+    ...
   }
 }
 ```
 
-**Common error codes:**
+Returns `404` if the post doesn't exist or isn't published.
 
-| Status | Code | Description |
-|--------|------|-------------|
-| `400` | `bad_request` | Invalid request body or parameters |
-| `401` | `unauthorized` | Missing or invalid API key |
-| `403` | `forbidden` | Insufficient permissions |
-| `404` | `not_found` | Resource does not exist |
-| `409` | `conflict` | Resource already exists (e.g. duplicate slug) |
-| `429` | `rate_limited` | Too many requests |
-| `500` | `internal_error` | Server error |
+---
+
+#### Sparse fieldsets
+
+Reduce response size by requesting only the fields you need:
+
+```bash
+# Only fetch title, slug, excerpt, and publishedAt
+curl "https://app.rankflo.io/api/v1/content?project_key=blg_xxx&fields=title,slug,excerpt,publishedAt"
+```
+
+`id` and `slug` are always included.
+
+---
+
+#### Incremental sync
+
+Fetch only posts that changed since your last sync:
+
+```bash
+curl "https://app.rankflo.io/api/v1/content?project_key=blg_xxx&updated_since=2026-03-01T00:00:00Z"
+```
+
+Store the latest `updatedAt` from each response and pass it as `updated_since` in the next request.
+
+---
+
+### GET /api/v1/search
+
+Full-text search across published posts using PostgreSQL `tsvector`.
+
+```bash
+curl "https://app.rankflo.io/api/v1/search?project_key=blg_xxx&q=lead+generation"
+```
+
+**Query parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `project_key` | string | — | **Required** |
+| `q` | string | — | **Required.** Search query |
+| `locale` | string | — | Filter by locale |
+| `tag` | string | — | Filter by tag slug |
+| `limit` | number | `10` | Results per page (max `20`) |
+| `page` | number | `1` | Page number |
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "slug": "b2b-lead-generation-guide",
+      "title": "B2B Lead Generation Guide",
+      "excerpt": "Everything you need to know about...",
+      "publishedAt": "2026-03-10T09:00:00.000Z",
+      "readingTime": 12,
+      "tags": [{ "name": "Lead Gen", "slug": "lead-gen" }],
+      "rank": 0.85
+    }
+  ],
+  "pagination": { "total": 4, "page": 1, "limit": 10, "totalPages": 1 }
+}
+```
+
+Results are ranked by relevance (`rank` field, 0–1). Title matches rank higher than body matches.
+
+---
+
+### GET /api/v1/tags
+
+List all tags with post counts.
+
+```bash
+curl "https://app.rankflo.io/api/v1/tags?project_key=blg_xxx"
+```
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `project_key` | string | **Required** |
+| `locale` | string | Filter by locale |
+
+**Response:**
+
+```json
+{
+  "data": [
+    { "name": "SEO", "slug": "seo", "color": "#22c55e", "postCount": 12 },
+    { "name": "Lead Generation", "slug": "lead-generation", "color": "#3b82f6", "postCount": 8 }
+  ]
+}
+```
+
+---
+
+### GET /api/v1/feed.xml
+
+RSS 2.0 feed for a project. Add this URL to any RSS reader or feed aggregator.
+
+```
+https://app.rankflo.io/api/v1/feed.xml?project_key=blg_xxx
+```
+
+**Query parameters:**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `project_key` | string | — | **Required** |
+| `locale` | string | — | Filter by locale |
+| `limit` | number | `20` | Number of items (max `50`) |
+
+Returns `application/rss+xml`.
+
+---
+
+### GET /api/v1/sitemap.xml
+
+XML sitemap of all published posts. Use this in your `robots.txt` or submit to Google Search Console.
+
+```
+https://app.rankflo.io/api/v1/sitemap.xml?project_key=blg_xxx
+```
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `project_key` | string | **Required** |
+| `base_url` | string | Your site's base URL (e.g. `https://yourdomain.com`) — used to build post URLs |
+
+**Example `robots.txt`:**
+
+```txt
+User-agent: *
+Allow: /
+
+Sitemap: https://app.rankflo.io/api/v1/sitemap.xml?project_key=blg_xxx&base_url=https://yourdomain.com
+```
+
+---
+
+### GET /api/v1/robots.txt
+
+Robots.txt file for your project's blog.
+
+```
+https://app.rankflo.io/api/v1/robots.txt?project_key=blg_xxx
+```
+
+---
+
+### GET /api/v1/og
+
+Dynamically generated Open Graph image for a post. Use as `<meta property="og:image">`.
+
+```
+https://app.rankflo.io/api/v1/og?project_key=blg_xxx&slug=my-post
+```
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `project_key` | string | **Required** |
+| `slug` | string | Post slug. If omitted, generates a generic project OG image |
+
+Returns a `1200×630` PNG image. Cached for 7 days.
+
+**Usage in Next.js:**
+
+```tsx
+export async function generateMetadata({ params }) {
+  return {
+    openGraph: {
+      images: [`https://app.rankflo.io/api/v1/og?project_key=blg_xxx&slug=${params.slug}`],
+    },
+  };
+}
+```
+
+---
+
+### GET /api/v1/llms.txt
+
+Machine-readable description of your blog content following the [llms.txt spec](https://llmstxt.org/). Helps AI assistants understand your site.
+
+```
+https://app.rankflo.io/api/v1/llms.txt?project_key=blg_xxx
+```
+
+---
+
+### POST /api/v1/analytics/track
+
+Track a pageview or custom event. Call this from your frontend after each page navigation.
+
+```bash
+curl -X POST "https://app.rankflo.io/api/v1/analytics/track" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "projectKey": "blg_xxx",
+    "event": "pageview",
+    "url": "https://yourdomain.com/blog/my-post",
+    "referrer": "https://google.com"
+  }'
+```
+
+**Body parameters:**
+
+| Field | Type | Description |
+|---|---|---|
+| `projectKey` | string | **Required** |
+| `event` | string | `pageview` (default) or a custom event name |
+| `url` | string | Full URL of the current page |
+| `referrer` | string | Referrer URL |
+
+**Easier: use the embed script**
+
+```html
+<!-- Add to your site's <head> — tracks pageviews automatically -->
+<script
+  async
+  src="https://app.rankflo.io/api/v1/analytics/tracker.js"
+  data-project-key="blg_xxx"
+></script>
+```
+
+---
+
+### POST /api/v1/subscribe
+
+Add an email address to your subscriber list.
+
+```bash
+curl -X POST "https://app.rankflo.io/api/v1/subscribe" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "projectKey": "blg_xxx",
+    "email": "reader@example.com",
+    "name": "Jane Smith",
+    "source": "blog-sidebar",
+    "tags": ["newsletter", "weekly"]
+  }'
+```
+
+**Body parameters:**
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `projectKey` | string | ✅ | Your project key |
+| `email` | string | ✅ | Subscriber's email |
+| `name` | string | | Subscriber's name |
+| `source` | string | | Where they subscribed (for attribution) |
+| `tags` | string[] | | Tags to assign |
+
+**Response:**
+
+```json
+{ "success": true, "id": "sub_abc123" }
+```
+
+**Embed a subscribe widget:**
+
+```html
+<script
+  src="https://app.rankflo.io/api/v1/sdk/subscribe.js?key=blg_xxx"
+  data-theme="light"
+  data-button-text="Subscribe"
+  data-placeholder="Your email"
+  data-source="footer"
+></script>
+```
+
+---
+
+## Webhooks
+
+Subscribe to real-time events when posts are published or updated.
+
+Set up webhooks in **Settings → Webhooks**. Each event sends a `POST` request to your endpoint with an HMAC-SHA256 signature.
+
+### Events
+
+| Event | Trigger |
+|---|---|
+| `post.published` | A post goes live (manually or via scheduled publish) |
+| `post.updated` | A published post is edited and saved |
+
+### Payload
+
+```json
+{
+  "event": "post.published",
+  "timestamp": "2026-03-20T09:00:00.000Z",
+  "data": {
+    "id": "abc123",
+    "slug": "my-post",
+    "title": "My Post",
+    "status": "PUBLISHED",
+    "publishedAt": "2026-03-20T09:00:00.000Z"
+  }
+}
+```
+
+### Signature verification
+
+Each request includes `X-RankFlo-Signature: sha256=<hmac>`.
+
+**Verify in Node.js:**
+
+```ts
+import { createHmac } from "crypto";
+
+function verifyWebhook(body: string, signature: string, secret: string): boolean {
+  const expected = "sha256=" + createHmac("sha256", secret).update(body).digest("hex");
+  return signature === expected;
+}
+
+// Express example
+app.post("/webhook", express.raw({ type: "application/json" }), (req, res) => {
+  const sig = req.headers["x-rankflo-signature"] as string;
+  if (!verifyWebhook(req.body.toString(), sig, process.env.WEBHOOK_SECRET!)) {
+    return res.status(401).send("Invalid signature");
+  }
+  const payload = JSON.parse(req.body.toString());
+  console.log("Event:", payload.event);
+  res.send("ok");
+});
+```
+
+### Retry policy
+
+Failed deliveries (non-2xx or timeout) are retried with exponential backoff:
+
+| Attempt | Delay |
+|---|---|
+| 1 | Immediate |
+| 2 | 1 minute |
+| 3 | 5 minutes |
+| 4 | 30 minutes |
+| 5 | 2 hours |
+
+After 5 failures the webhook is moved to the **dead letter queue** and paused.
+
+---
+
+## Integrating with Next.js
+
+A complete example fetching and rendering posts in a Next.js App Router site:
+
+```ts
+// lib/rankflo.ts
+const BASE = "https://app.rankflo.io";
+const KEY = process.env.RANKFLO_PROJECT_KEY!;
+
+export async function getPosts() {
+  const res = await fetch(`${BASE}/api/v1/content?project_key=${KEY}&limit=100`, {
+    next: { revalidate: 300 }, // ISR: revalidate every 5 min
+  });
+  const json = await res.json();
+  return json.data ?? [];
+}
+
+export async function getPost(slug: string) {
+  const res = await fetch(`${BASE}/api/v1/content?project_key=${KEY}&slug=${slug}`, {
+    cache: "no-store", // always fresh for individual posts
+  });
+  const json = await res.json();
+  return json.data ?? null;
+}
+```
+
+```tsx
+// app/blog/page.tsx
+import { getPosts } from "@/lib/rankflo";
+
+export default async function BlogPage() {
+  const posts = await getPosts();
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.slug}>
+          <a href={`/blog/${post.slug}`}>{post.title}</a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+```
+
+```tsx
+// app/blog/[slug]/page.tsx
+import { getPost, getPosts } from "@/lib/rankflo";
+import { notFound } from "next/navigation";
+
+export async function generateStaticParams() {
+  const posts = await getPosts();
+  return posts.map((p) => ({ slug: p.slug }));
+}
+
+export default async function PostPage({ params }: { params: { slug: string } }) {
+  const post = await getPost(params.slug);
+  if (!post) notFound();
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <div dangerouslySetInnerHTML={{ __html: post.content }} />
+    </article>
+  );
+}
+```
+
+---
+
+## Error responses
+
+All errors return JSON with a consistent shape:
+
+```json
+{ "error": "Post not found" }
+```
+
+| Status | Meaning |
+|---|---|
+| `400` | Bad request — missing or invalid parameter |
+| `401` | Missing or invalid API key |
+| `403` | Project is archived |
+| `404` | Post or resource not found |
+| `429` | Rate limit exceeded |
+| `500` | Internal server error |

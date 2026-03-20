@@ -7,7 +7,7 @@ const PROVIDERS = [
   {
     id: "anthropic",
     label: "Anthropic",
-    description: "Claude models (claude-sonnet-4-6, claude-opus-4-6)",
+    description: "Claude models (Sonnet, Opus)",
     placeholder: "sk-ant-api03-...",
     docsUrl: "https://console.anthropic.com/settings/keys",
   },
@@ -21,16 +21,27 @@ const PROVIDERS = [
   {
     id: "google",
     label: "Google AI",
-    description: "Gemini models (gemini-1.5-pro, gemini-2.0-flash)",
+    description: "Gemini models (gemini-2.0-flash)",
     placeholder: "AIza...",
     docsUrl: "https://aistudio.google.com/apikey",
   },
+  {
+    id: "kie",
+    label: "KIE.ai",
+    description: "Gemini & GPT models + image generation",
+    placeholder: "kie-...",
+    docsUrl: "https://kie.ai",
+  },
 ] as const;
 
+type ProviderId = (typeof PROVIDERS)[number]["id"];
+
 export default function SettingsAIPage() {
-  const [selectedProvider, setSelectedProvider] = useState<"anthropic" | "openai" | "google">("anthropic");
+  const [selectedProvider, setSelectedProvider] = useState<ProviderId>("anthropic");
   const [apiKey, setApiKey] = useState("");
+  const [imageKey, setImageKey] = useState("");
   const [saved, setSaved] = useState(false);
+  const [imageSaved, setImageSaved] = useState(false);
   const [clearConfirm, setClearConfirm] = useState(false);
 
   const { data, refetch } = trpc.organization.getAISettings.useQuery();
@@ -40,6 +51,15 @@ export default function SettingsAIPage() {
       setApiKey("");
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
+      refetch();
+    },
+  });
+
+  const updateImage = trpc.organization.updateKieImageKey.useMutation({
+    onSuccess: () => {
+      setImageKey("");
+      setImageSaved(true);
+      setTimeout(() => setImageSaved(false), 3000);
       refetch();
     },
   });
@@ -55,6 +75,12 @@ export default function SettingsAIPage() {
     e.preventDefault();
     if (!apiKey.trim()) return;
     update.mutate({ provider: selectedProvider, apiKey: apiKey.trim() });
+  };
+
+  const handleImageSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!imageKey.trim()) return;
+    updateImage.mutate({ apiKey: imageKey.trim() });
   };
 
   const activeProvider = PROVIDERS.find((p) => p.id === selectedProvider)!;
@@ -119,7 +145,7 @@ export default function SettingsAIPage() {
       <div className="rounded-xl border border-gray-800 bg-gray-950 p-5 space-y-5">
         <div>
           <p className="text-sm font-medium text-white mb-3">Select provider</p>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {PROVIDERS.map((p) => (
               <button
                 key={p.id}
@@ -186,10 +212,63 @@ export default function SettingsAIPage() {
         </form>
       </div>
 
+      {/* KIE Image Generation */}
+      <div className="rounded-xl border border-gray-800 bg-gray-950 p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold text-white">Image Generation</h3>
+          <p className="text-xs text-gray-500 mt-0.5">
+            KIE.ai Nano Banana (Gemini 2.5 Flash) — generate images directly inside blog posts.
+            Requires a separate KIE API key.
+          </p>
+        </div>
+
+        {data?.hasImageKey && (
+          <div className="flex items-center gap-3 rounded-lg border border-green-800/30 bg-green-950/20 px-3 py-2">
+            <span className="h-2 w-2 rounded-full bg-green-500" />
+            <p className="text-xs text-green-400">
+              Image key connected: <code className="text-gray-400">{data.maskedImageKey}</code>
+            </p>
+          </div>
+        )}
+
+        <form onSubmit={handleImageSave} className="space-y-3">
+          <div>
+            <label className="text-sm font-medium text-white">KIE API Key (for images)</label>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Get your key from{" "}
+              <a href="https://kie.ai" target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
+                kie.ai
+              </a>
+            </p>
+            <input
+              type="password"
+              value={imageKey}
+              onChange={(e) => setImageKey(e.target.value)}
+              placeholder={data?.hasImageKey ? data.maskedImageKey ?? "kie-..." : "kie-..."}
+              className="mt-2 w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm font-mono text-white placeholder:text-gray-600 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
+              autoComplete="off"
+            />
+          </div>
+          {updateImage.error && (
+            <p className="text-xs text-red-400">{updateImage.error.message}</p>
+          )}
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={updateImage.isPending || !imageKey.trim()}
+              className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-black hover:bg-accent-9 disabled:opacity-50 transition-colors"
+            >
+              {updateImage.isPending ? "Saving..." : imageSaved ? "Saved!" : "Save image key"}
+            </button>
+            {imageSaved && <span className="text-xs text-green-400">Image generation enabled.</span>}
+          </div>
+        </form>
+      </div>
+
       {/* Info box */}
       <div className="rounded-xl border border-gray-800 bg-gray-950/50 px-4 py-3">
         <p className="text-xs text-gray-500 leading-relaxed">
-          <strong className="text-gray-400">Security:</strong> Your API key is stored encrypted in your organization settings. It is never exposed in the browser or logs. It is only used server-side when you trigger AI features.
+          <strong className="text-gray-400">Security:</strong> Your API keys are stored encrypted in your organization settings. They are never exposed in the browser or logs. They are only used server-side when you trigger AI features.
           {" "}
           <strong className="text-gray-400">Priority:</strong> Org-level keys override any server environment variables.
         </p>

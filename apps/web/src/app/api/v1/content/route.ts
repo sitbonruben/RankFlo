@@ -11,7 +11,6 @@ import { rateLimit } from "@/lib/rate-limit";
  *
  * GET /api/v1/content
  *   ?project_key=blg_xxx     — Project API key (alt to Bearer header)
- *   &status=PUBLISHED        — Filter by status (default: PUBLISHED)
  *   &slug=my-post            — Fetch single post by slug
  *   &tag=seo                 — Filter by tag slug
  *   &locale=en               — Filter by locale
@@ -71,7 +70,8 @@ export async function GET(req: NextRequest) {
 
     // ─── PARAMS ───────────────────────────────────
     const slug = url.searchParams.get("slug");
-    const status = url.searchParams.get("status") || "PUBLISHED";
+    // Content delivery API always returns PUBLISHED posts only.
+    // The ?status param is intentionally ignored for security.
     const tag = url.searchParams.get("tag");
     const locale = url.searchParams.get("locale");
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
@@ -91,6 +91,7 @@ export async function GET(req: NextRequest) {
           projectId: project.id,
           organizationId: project.organizationId,
           slug,
+          status: "PUBLISHED",
           deletedAt: null,
         },
         include: {
@@ -115,7 +116,7 @@ export async function GET(req: NextRequest) {
     const where: any = {
       projectId: project.id,
       organizationId: project.organizationId,
-      status,
+      status: "PUBLISHED",
       deletedAt: null,
     };
 

@@ -38,4 +38,7 @@ apps/mobile/ios/
 
 # Docker
 docker/data/
+
+# Customer-specific scripts (not for public repo)
+scripts/
 .claude/settings.local.json

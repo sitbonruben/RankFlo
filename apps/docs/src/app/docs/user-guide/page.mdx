@@ -1,0 +1,292 @@
+# User Guide
+
+This guide covers everything you need to know to use RankFlo — from creating your first project to publishing with AI assistance.
+
+---
+
+## Dashboard overview
+
+After signing in you land on the **Overview** page. The left sidebar gives you access to all sections.
+
+| Section | What it does |
+|---|---|
+| **Overview** | Quick stats: posts published, total views, AI credits remaining |
+| **Posts** | All your blog posts across every status |
+| **Calendar** | Visual editorial calendar for scheduling |
+| **Media** | Image library |
+| **Analytics** | Pageview charts, top posts, UTM breakdown |
+| **SEO** | SEO audit scores and recommendations |
+| **Search** | Search analytics — query volume, CTR, zero-results |
+| **Growth** | Subscriber list and growth tips |
+| **Projects** | Manage multiple blogs / sites from one account |
+| **Settings** | API keys, AI providers, team members, webhooks |
+
+---
+
+## Projects
+
+Every blog lives inside a **Project**. One organization can have multiple projects (e.g. your company blog, a product changelog, a docs site).
+
+### Create a project
+
+1. Go to **Projects → New Project**
+2. Enter a name and slug
+3. Copy your **Project API Key** (`blg_xxx`) — you'll use this to deliver content to your site
+
+Your project key is read-only. It only returns **published** posts — drafts and scheduled posts are never exposed.
+
+---
+
+## Writing posts
+
+### Create a post
+
+Go to **Posts → New Post** (or press the **＋ New post** button in the top-right).
+
+### The editor
+
+RankFlo uses a **block editor** powered by Tiptap. Type `/` anywhere to open the block menu.
+
+**Available blocks:**
+
+| Block | Shortcut |
+|---|---|
+| Heading (H1–H3) | `/h1` `/h2` `/h3` |
+| Paragraph | `/p` |
+| Image | `/image` |
+| Callout | `/callout` |
+| Code block | `/code` |
+| Table | `/table` |
+| Divider | `/divider` |
+| Quote | `/quote` |
+| Embed | `/embed` |
+
+### Post settings (right panel)
+
+The right sidebar lets you configure:
+
+- **Slug** — URL-friendly identifier, auto-generated from the title
+- **Excerpt** — Short summary shown in post lists and search results
+- **Featured image** — Hero image for the post
+- **Status** — Draft / Review / Scheduled / Published
+- **Publish date** — Set a future date to schedule
+- **Tags** — Comma-separated tags for filtering and RSS
+- **Author** — Assignable to any team member
+- **Locale** — For multi-language sites
+
+### Publishing workflow
+
+Posts move through these statuses:
+
+```
+Draft → In Review → Scheduled → Published → Archived
+```
+
+- **Draft** — visible only to the team
+- **In Review** — flagged for editorial approval
+- **Scheduled** — will auto-publish at the set date/time (cron runs every minute)
+- **Published** — live and returned by the content API
+- **Archived** — hidden from the API, kept for reference
+
+---
+
+## AI Writing
+
+RankFlo includes AI writing tools in the **right panel** of the editor. Click the ✦ icon to open the AI sidebar.
+
+### What you can do
+
+| Tool | What it does |
+|---|---|
+| **Generate post** | Write a full post from a topic or brief |
+| **Continue writing** | Extend the current content |
+| **Rewrite selection** | Rewrite a highlighted section in a different tone |
+| **Improve** | Fix grammar, clarity, and flow |
+| **Summarize** | Shorten selected text |
+| **SEO optimize** | Improve keyword density and meta description |
+| **Brand voice** | Rewrite to match your organization's tone |
+| **AI Chat** | Free-form conversation about the content |
+
+### Setting up AI
+
+You need at least one AI provider configured. Two options:
+
+**Option 1 — Bring your own key (free)**
+
+Go to **Settings → AI** and paste your key from one of:
+- [Anthropic](https://console.anthropic.com/settings/keys) — Claude models
+- [OpenAI](https://platform.openai.com/api-keys) — GPT-4o
+- [Google AI Studio](https://aistudio.google.com/apikey) — Gemini
+- [KIE.ai](https://kie.ai) — Multi-model + image generation
+
+Keys are encrypted at rest with AES-256-GCM.
+
+**Option 2 — Managed credits (Cloud plan)**
+
+On paid cloud plans, AI credits are included. Each generation costs a small number of credits. You can buy additional credit packs from **Settings → Billing**.
+
+---
+
+## SEO Audit
+
+The SEO panel runs a 9-point audit on every post and gives each one a score out of 100.
+
+Go to **SEO** in the sidebar, or open the **SEO** tab inside the editor.
+
+**Checks performed:**
+
+| Check | What it validates |
+|---|---|
+| Meta title | Present, correct length (30–60 chars) |
+| Meta description | Present, correct length (120–160 chars) |
+| Canonical URL | Set and correct |
+| H1 heading | Present, one per post |
+| Keyword in title | Target keyword appears in title |
+| Keyword in first paragraph | Target keyword in the opening |
+| Image alt text | All images have alt attributes |
+| Internal links | At least one internal link |
+| Structured data | Valid JSON-LD Article schema |
+
+---
+
+## Analytics
+
+RankFlo tracks pageviews with a **cookieless, privacy-first** tracker — no GDPR consent banner needed.
+
+### Embed the tracker
+
+Add this snippet to your site's `<head>`:
+
+```html
+<script
+  async
+  src="https://app.rankflo.io/api/v1/analytics/tracker.js"
+  data-project-key="blg_xxx"
+></script>
+```
+
+Replace `blg_xxx` with your project key.
+
+### Viewing analytics
+
+Go to **Analytics** in the sidebar.
+
+**What you see:**
+
+- **Pageviews** — Daily chart with 7d / 30d / 90d / custom range
+- **Top posts** — Most viewed posts in the period
+- **Traffic sources** — Referrers, search engines, direct
+- **UTM breakdown** — Campaign, medium, source attribution
+- **Devices** — Desktop vs mobile split
+
+### Search analytics
+
+Go to **Search** to see what visitors are searching for on your site.
+
+- **Top queries** — Most searched terms
+- **Click-through rate** — % of searches that result in a click
+- **Zero-results** — Queries with no results (content gap opportunities)
+
+---
+
+## Scheduling posts
+
+1. Set the post status to **Scheduled**
+2. Pick a future date and time
+3. Save — RankFlo's cron job publishes it automatically at that time
+
+The calendar view (**Calendar** in the sidebar) shows all scheduled posts in a monthly view.
+
+---
+
+## Media library
+
+Upload images and files at **Media**. Supported formats: JPEG, PNG, WebP, GIF, SVG, PDF.
+
+In the editor, type `/image` or drag-and-drop an image directly into the editor to upload.
+
+---
+
+## Team
+
+Invite team members at **Settings → Team**.
+
+| Role | Can do |
+|---|---|
+| **Admin** | Everything: billing, API keys, team settings |
+| **Editor** | Create, edit, publish any post |
+| **Author** | Create and edit their own posts |
+| **Viewer** | Read-only access |
+
+---
+
+## API Keys
+
+Generate API keys at **Settings → API Keys**.
+
+Two types:
+- **Project key** (`blg_xxx`) — used to deliver public content via the REST API. Read-only, safe to use in your frontend.
+- **Organization key** (`sk_live_xxx`) — full management access. Keep this secret, server-side only.
+
+---
+
+## Webhooks
+
+Get notified when posts are published or updated. Set up webhooks at **Settings → Webhooks**.
+
+Every webhook delivery includes an `X-RankFlo-Signature` header with an HMAC-SHA256 signature so you can verify the payload is genuine.
+
+**Events:**
+- `post.published` — fired when a post is published or goes live after scheduling
+- `post.updated` — fired when a published post is updated
+
+See the [Webhooks guide](/docs/webhooks) for payload details and signature verification.
+
+---
+
+## Chrome Extension
+
+Write and publish directly from any webpage without switching apps.
+
+**Install:**
+1. Download from the [Chrome Web Store](#) or build from source (`cd apps/extension && pnpm build`)
+2. Load `dist/` as an unpacked extension in Chrome
+3. Press **Cmd+Shift+Y** (Mac) / **Ctrl+Shift+Y** (Windows) to open the side panel
+
+**Features:**
+- Select text on any webpage → Import into editor
+- Full editor with AI tools in the side panel
+- Publish directly to any of your projects
+
+---
+
+## MCP Server (Claude Desktop)
+
+Connect RankFlo to Claude Desktop so you can create and publish posts with natural language.
+
+**Setup:**
+
+1. Build the MCP server: `cd packages/mcp && pnpm build`
+2. Add to Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "rankflo": {
+      "command": "node",
+      "args": ["/path/to/RankFlo/packages/mcp/dist/index.js"],
+      "env": {
+        "RANKFLO_API_KEY": "sk_live_...",
+        "RANKFLO_URL": "https://app.rankflo.io"
+      }
+    }
+  }
+}
+```
+
+3. Restart Claude Desktop
+
+**Example prompts:**
+- *"Write a 1000-word post about B2B lead generation and publish it as a draft"*
+- *"List my last 5 published posts"*
+- *"Schedule this post for next Monday at 9am"*

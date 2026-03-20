@@ -1,108 +1,112 @@
 # Getting Started
 
-RankFlo is an open-source platform for building developer communities. This guide walks you through installing, configuring, and running RankFlo locally.
+RankFlo is an open-source headless CMS and blog platform built for SEO. This guide gets you up and running in minutes.
 
-## Prerequisites
+---
 
-Before you begin, make sure you have the following installed:
+## Two ways to use RankFlo
 
-- **Node.js** 20.0 or later
-- **pnpm** 9.0 or later
-- **PostgreSQL** 15 or later
-- **Redis** 7 or later
+**Cloud (managed)** — Create a free account at [app.rankflo.io](https://app.rankflo.io). No setup required.
 
-> You can use Docker to run PostgreSQL and Redis if you do not have them installed locally. See the [Self-Hosting](/docs/self-hosting) guide for a Docker Compose setup.
+**Self-hosted** — Run RankFlo on your own server. See [Self-Hosting](/docs/self-hosting).
 
-## Installation
+---
 
-Clone the repository and install dependencies:
+## Quick start (self-hosted)
+
+### Prerequisites
+
+- Docker + Docker Compose
+- A server with 1 GB RAM minimum
+
+### 1. Clone and configure
 
 ```bash
-git clone https://github.com/rankflo/rankflo.git
-cd rankflo
+git clone https://github.com/sitbonruben/RankFlo.git
+cd RankFlo/docker
+
+cp ../.env.example .env.production
+```
+
+Open `.env.production` and fill in the required values:
+
+```bash
+# Required
+DATABASE_URL="postgresql://rankflo:yourpassword@postgres:5432/rankflo"
+REDIS_URL="redis://redis:6379"
+NEXT_PUBLIC_APP_URL="https://your-domain.com"
+ADMIN_EMAIL="admin@your-domain.com"
+ADMIN_PASSWORD="choose-a-strong-password"
+
+# Generate these with: openssl rand -hex 32
+AUTH_SECRET="..."
+ENCRYPTION_KEY="..."
+
+# AI (optional — users can also bring their own keys)
+ANTHROPIC_API_KEY=""
+OPENAI_API_KEY=""
+```
+
+### 2. Start
+
+```bash
+docker compose up -d
+```
+
+Open [http://localhost:3000](http://localhost:3000) and sign in with the credentials you set.
+
+### 3. Create your first project
+
+1. Go to **Projects → New Project**
+2. Enter a name (e.g. "My Blog")
+3. Copy the **Project API Key** — you'll use this to fetch posts from your site
+
+---
+
+## Connecting your site
+
+Use the [Content API](/docs/api-reference) to fetch posts from any framework.
+
+**Next.js example:**
+
+```ts
+// lib/rankflo.ts
+const KEY = process.env.RANKFLO_PROJECT_KEY; // your blg_xxx key
+
+export async function getPosts() {
+  const res = await fetch(
+    `https://app.rankflo.io/api/v1/content?project_key=${KEY}&limit=20`,
+    { next: { revalidate: 300 } }
+  );
+  return (await res.json()).data ?? [];
+}
+```
+
+---
+
+## Development setup
+
+If you want to contribute or run from source:
+
+```bash
+# Node 22+ and pnpm 9+ required
 pnpm install
-```
 
-## Configuration
-
-Copy the example environment file and fill in the required values:
-
-```bash
 cp .env.example .env
+# Fill in DATABASE_URL, REDIS_URL, AUTH_SECRET, ENCRYPTION_KEY
+
+pnpm db:generate
+pnpm db:migrate dev
+pnpm db:seed     # creates the admin account
+
+pnpm dev         # starts at http://localhost:3000
 ```
 
-Open `.env` and configure the following:
-
-```bash
-# Database
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/rankflo"
-
-# Redis
-REDIS_URL="redis://localhost:6379"
-
-# Authentication
-AUTH_SECRET="your-random-secret-here"
-AUTH_URL="http://localhost:3000"
-
-# Optional: GitHub OAuth
-GITHUB_CLIENT_ID=""
-GITHUB_CLIENT_SECRET=""
-```
-
-### Generate the database schema
-
-Run the database migrations and seed data:
-
-```bash
-pnpm db:migrate
-pnpm db:seed
-```
-
-## Running the dev server
-
-Start all applications and packages in development mode:
-
-```bash
-pnpm dev
-```
-
-This starts:
-
-| Service | URL |
-|---------|-----|
-| Web app | `http://localhost:3000` |
-| Docs | `http://localhost:3001` |
-
-The dev server supports hot module replacement. Changes to code are reflected immediately in the browser.
-
-## Project structure
-
-The monorepo is organized as follows:
-
-```
-rankflo/
-  apps/
-    web/          # Next.js web application
-    docs/         # Documentation site (you are here)
-    mobile/       # React Native mobile app
-  packages/
-    api/          # tRPC API layer
-    auth/         # Authentication
-    core/         # Shared business logic
-    db/           # Database schema and client
-    ui/           # Shared UI components
-    sdk/          # Public SDK
-    webhooks/     # Webhook delivery
-    analytics/    # Analytics engine
-    search/       # Full-text search
-  tooling/
-    eslint/       # ESLint configurations
-    tailwind/     # Tailwind CSS presets
-    typescript/   # TypeScript configurations
-```
+---
 
 ## Next steps
 
-- [Self-Hosting](/docs/self-hosting) — Deploy RankFlo on your own infrastructure
-- [API Reference](/docs/api-reference) — Explore the REST API
-- [Webhooks](/docs/webhooks) — Subscribe to real-time events
+- [User Guide](/docs/user-guide) — Learn the dashboard, editor, and AI tools
+- [API Reference](/docs/api-reference) — Content delivery API docs
+- [Self-Hosting](/docs/self-hosting) — Production deployment guide
+- [Webhooks](/docs/webhooks) — Real-time post event subscriptions

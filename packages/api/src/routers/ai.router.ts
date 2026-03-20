@@ -3,6 +3,7 @@ import { z } from "zod";
 import crypto from "crypto";
 
 import { router, orgProcedure } from "../trpc";
+import { decrypt } from "../lib/encrypt";
 import {
   resolveAIConfig,
   generateContent,
@@ -13,7 +14,9 @@ import {
   improveContent,
   chat,
   editDocument,
+  buildEditorBlocks,
   slugify,
+  generateImageWithKie,
 } from "@rankflo/ai";
 import type { AIConfig, BrandVoice, GeneratedContent } from "@rankflo/ai";
 import { checkAndDeductCredits } from "../lib/credits";
@@ -33,8 +36,8 @@ async function requireAIConfig(ctx: { db: { organization: { findUnique: (args: u
   const settings = (org?.settings as Record<string, unknown>) ?? {};
   if (settings.aiApiKey && settings.aiProvider) {
     return {
-      provider: settings.aiProvider as "openai" | "anthropic" | "google",
-      apiKey: settings.aiApiKey as string,
+      provider: settings.aiProvider as "openai" | "anthropic" | "google" | "kie",
+      apiKey: decrypt(settings.aiApiKey as string),
     };
   }
 
@@ -104,7 +107,7 @@ export const aiRouter = router({
         return {
           configured: true,
           provider: p,
-          label: p === "anthropic" ? "Claude" : p === "openai" ? "GPT-4" : p === "google" ? "Gemini" : p,
+          label: p === "anthropic" ? "Claude" : p === "openai" ? "GPT-4" : p === "google" ? "Gemini" : p === "kie" ? "KIE.ai" : p,
         };
       }
 
@@ -115,7 +118,7 @@ export const aiRouter = router({
       return {
         configured: true,
         provider: p,
-        label: p === "anthropic" ? "Claude" : p === "openai" ? "GPT-4" : p === "google" ? "Gemini" : p,
+        label: p === "anthropic" ? "Claude" : p === "openai" ? "GPT-4" : p === "google" ? "Gemini" : p === "kie" ? "KIE.ai" : p,
       };
     }),
 
@@ -631,12 +634,13 @@ export const aiRouter = router({
           slug: generated.slug || slugify(generated.title),
           excerpt: generated.excerpt,
           content: {
-            type: "doc",
+            version: 1,
+            metadata: {},
             blocks: [
               {
                 id: crypto.randomUUID(),
-                type: "markdown",
-                props: { content: generated.content },
+                type: "text",
+                props: { html: generated.contentHtml, alignment: "left" },
               },
             ],
           },
@@ -700,6 +704,57 @@ export const aiRouter = router({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: error instanceof Error ? error.message : "Document edit failed.",
+          cause: error,
+        });
+      }
+    }),
+
+  // ─── BUILD BLOCKS (write directly to editor) ─────────────
+  buildBlocks: orgProcedure
+    .input(
+      z.object({
+        topic: z.string().min(1).max(500),
+        contentType: z
+          .enum(["blog-post", "how-to", "listicle", "tutorial", "comparison", "case-study", "opinion", "roundup"])
+          .default("blog-post"),
+        keywords: z.array(z.string()).optional(),
+        audience: z.string().optional(),
+        tone: z.string().optional(),
+        projectId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const config = await requireAIConfig(ctx);
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.improveContent, "buildBlocks");
+
+      let brandVoice: BrandVoice | undefined;
+      let projectDescription: string | undefined;
+
+      if (input.projectId) {
+        const project = await ctx.db.project.findFirst({
+          where: { id: input.projectId, organizationId: ctx.organizationId },
+        });
+        if (project) {
+          brandVoice = buildBrandVoiceFromProject(project);
+          projectDescription = project.description ?? undefined;
+        }
+      }
+
+      try {
+        const result = await buildEditorBlocks(config, {
+          topic: input.topic,
+          contentType: input.contentType,
+          keywords: input.keywords,
+          audience: input.audience,
+          tone: input.tone,
+          projectDescription,
+          brandVoice,
+        });
+        return result;
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Failed to generate content blocks.",
           cause: error,
         });
       }
@@ -815,5 +870,49 @@ export const aiRouter = router({
       });
 
       return { created };
+    }),
+
+  // ─── GENERATE IMAGE (KIE Nano Banana) ───────────────────
+  generateImage: orgProcedure
+    .input(
+      z.object({
+        prompt: z.string().min(1).max(2000),
+        aspectRatio: z.enum(["1:1", "16:9", "4:3", "9:16"]).default("16:9"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Resolve KIE image API key — org setting takes priority, then env
+      const org = await ctx.db.organization.findUnique({
+        where: { id: ctx.organizationId },
+        select: { settings: true },
+      });
+      const settings = (org?.settings as Record<string, unknown>) ?? {};
+      const apiKey =
+        settings.kieImageApiKey ? decrypt(settings.kieImageApiKey as string) :
+        process.env.KIE_API_KEY;
+
+      if (!apiKey) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "No KIE API key configured. Add your KIE API key in Settings → AI.",
+        });
+      }
+
+      await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.improveContent, "generateImage");
+
+      try {
+        const url = await generateImageWithKie(apiKey, input.prompt, input.aspectRatio);
+        return { url };
+      } catch (error) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message:
+            error instanceof Error
+              ? `Image generation failed: ${error.message}`
+              : "Image generation failed unexpectedly.",
+          cause: error,
+        });
+      }
     }),
 });

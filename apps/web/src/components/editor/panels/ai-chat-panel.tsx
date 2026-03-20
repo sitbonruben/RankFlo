@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { trpc } from "@/trpc/client";
 import { useEditorStore } from "@/stores/editor-store";
 
@@ -11,11 +10,30 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
-  isCreatingPost?: boolean;
   pendingBlocks?: unknown[];
 }
 
-// ─── Intent Detection ────────────────────────────────────
+// Blog types the AI can create
+const BLOG_TYPES = [
+  { id: "how-to", label: "How-To Guide", icon: "📝", description: "Step-by-step instructions" },
+  { id: "listicle", label: "Listicle", icon: "📋", description: "Numbered tips or items" },
+  { id: "tutorial", label: "Tutorial", icon: "🎓", description: "In-depth technical walkthrough" },
+  { id: "comparison", label: "Comparison", icon: "⚔️", description: "Compare options side-by-side" },
+  { id: "case-study", label: "Case Study", icon: "📊", description: "Real-world example & results" },
+  { id: "opinion", label: "Opinion", icon: "💭", description: "Thought leadership piece" },
+  { id: "roundup", label: "Roundup", icon: "📰", description: "Curated list of resources" },
+  { id: "blog-post", label: "Blog Post", icon: "✍️", description: "Standard SEO article" },
+] as const;
+
+type BlogTypeId = (typeof BLOG_TYPES)[number]["id"];
+
+// Pending blog creation state
+interface PendingBlog {
+  contentType: BlogTypeId;
+  topic?: string;
+}
+
+// ─── Intent helpers ──────────────────────────────────────
 const EDIT_PATTERNS = [
   /\b(improve|enhance|better|refine)\b/i,
   /\bfix\s+(grammar|spelling|writing|typos?)\b/i,
@@ -33,12 +51,51 @@ function isEditIntent(msg: string): boolean {
   return EDIT_PATTERNS.some((p) => p.test(msg));
 }
 
-function isCreatePostIntent(msg: string): boolean {
+function detectBlogType(msg: string): BlogTypeId | null {
+  const lower = msg.toLowerCase();
+  if (lower.includes("how-to") || lower.includes("how to")) return "how-to";
+  if (lower.includes("listicle") || lower.includes("list of") || /\d+\s+(ways|tips|tricks|strategies|ideas)/.test(lower)) return "listicle";
+  if (lower.includes("tutorial")) return "tutorial";
+  if (lower.includes("comparison") || lower.includes("vs ") || lower.includes("versus")) return "comparison";
+  if (lower.includes("case study") || lower.includes("case-study")) return "case-study";
+  if (lower.includes("opinion") || lower.includes("thought leadership")) return "opinion";
+  if (lower.includes("roundup")) return "roundup";
+  return "blog-post";
+}
+
+function isWriteIntent(msg: string): boolean {
   const lower = msg.toLowerCase();
   return (
-    (lower.includes("create") || lower.includes("write") || lower.includes("generate") || lower.includes("make")) &&
-    (lower.includes("post") || lower.includes("article") || lower.includes("blog"))
+    (lower.includes("write") || lower.includes("create") || lower.includes("generate") || lower.includes("make")) &&
+    (lower.includes("post") || lower.includes("article") || lower.includes("blog") || lower.includes("guide") ||
+      lower.includes("tutorial") || lower.includes("listicle") || lower.includes("comparison") || lower.includes("case study"))
   );
+}
+
+/** Extract topic from natural language, e.g. "create a blog about X", "write a listicle X", "create a blog show me what you can do X" */
+function extractTopic(msg: string): string | null {
+  // Try explicit preposition patterns first
+  const explicit = [
+    /(?:write|create|generate|make)\s+(?:a\s+)?(?:blog\s+)?(?:post|article|guide|tutorial|listicle|comparison|roundup|piece|content)?\s+(?:about|on|for|covering)\s+(.+)/i,
+    /(?:about|on|for|covering|regarding)\s+(.+)/i,
+  ];
+  for (const p of explicit) {
+    const m = msg.match(p);
+    if (m?.[1]) return m[1].trim().replace(/[?.!]+$/, "");
+  }
+  // Strip intent/filler words and see what topic remains
+  const stripped = msg
+    .replace(/\b(write|create|generate|make|build)\b/gi, "")
+    .replace(/\b(a|an|the)\b/gi, "")
+    .replace(/\bblog\s*(post|article)?\b/gi, "")
+    .replace(/\b(post|article|guide|tutorial|listicle|comparison|roundup|case\s*study|opinion)\b/gi, "")
+    .replace(/\bshow\s+me\s+(what\s+you\s+can\s+do|your\s+capabilities?|what\s+it\s+can\s+do)\b/gi, "")
+    .replace(/\b(can\s+do|how\s+it\s+works?|demo|example)\b/gi, "")
+    .replace(/[?.!,]+$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (stripped.length >= 3) return stripped;
+  return null;
 }
 
 // ─── Typing Indicator ────────────────────────────────────
@@ -50,6 +107,7 @@ function TypingIndicator() {
         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-500" style={{ animationDelay: "150ms" }} />
         <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-500" style={{ animationDelay: "300ms" }} />
       </div>
+      <span className="ml-1 text-[11px] text-gray-600">Writing to editor…</span>
     </div>
   );
 }
@@ -67,7 +125,7 @@ function MessageBubble({
   const isUser = message.role === "user";
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
-      <div className={`max-w-[85%] ${isUser ? "" : "w-full"}`}>
+      <div className={`max-w-[88%] ${isUser ? "" : "w-full"}`}>
         <div
           className={`rounded-xl px-3.5 py-2.5 ${
             isUser ? "bg-gray-800 text-gray-200" : "bg-gray-900 text-gray-300"
@@ -78,7 +136,7 @@ function MessageBubble({
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
                 <path d="M6 1l1.2 2.4L10 4l-2 2 .5 3L6 7.9 3.5 9l.5-3-2-2 2.8-.6L6 1z" fill="#39FF14" fillOpacity="0.6" />
               </svg>
-              <span className="text-[10px] font-medium text-[#39FF14]/60">AI Assistant</span>
+              <span className="text-[10px] font-medium text-[#39FF14]/60">AI Editor</span>
             </div>
           )}
           <p className="whitespace-pre-wrap text-[13px] leading-relaxed">{message.content}</p>
@@ -87,14 +145,14 @@ function MessageBubble({
           </p>
         </div>
 
-        {/* Apply/Dismiss for pending edit blocks */}
+        {/* Apply/Dismiss — only for edit suggestions (not creation) */}
         {message.pendingBlocks && message.pendingBlocks.length > 0 && (
           <div className="mt-1.5 flex gap-2">
             <button
               onClick={() => onApply?.(message.pendingBlocks!)}
               className="flex-1 rounded-lg bg-[#39FF14]/10 px-3 py-1.5 text-[11px] font-semibold text-[#39FF14] transition-colors hover:bg-[#39FF14]/20"
             >
-              ✓ Apply changes
+              ✓ Apply to editor
             </button>
             <button
               onClick={() => onDismiss?.(message.id)}
@@ -104,6 +162,29 @@ function MessageBubble({
             </button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Blog Type Picker ─────────────────────────────────────
+function BlogTypePicker({ onSelect }: { onSelect: (type: BlogTypeId) => void }) {
+  return (
+    <div className="px-3 py-3">
+      <p className="mb-2 text-[11px] text-gray-500">Choose a blog format:</p>
+      <div className="grid grid-cols-2 gap-1.5">
+        {BLOG_TYPES.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => onSelect(t.id)}
+            className="flex flex-col rounded-lg border border-gray-800 bg-gray-950 p-2 text-left transition-colors hover:border-[#39FF14]/30 hover:bg-gray-900"
+          >
+            <span className="text-base leading-none">{t.icon}</span>
+            <span className="mt-1 text-[11px] font-medium text-gray-300">{t.label}</span>
+            <span className="mt-0.5 text-[10px] text-gray-600">{t.description}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -119,17 +200,17 @@ function EmptyState({ hasContent }: { hasContent: boolean }) {
           <path d="M6 22l1.5-3M22 22l-1.5-3M4 14h2M22 14h2" stroke="#39FF14" strokeWidth="1" strokeLinecap="round" opacity="0.4" />
         </svg>
       </div>
-      <h3 className="mt-4 text-sm font-medium text-gray-300">AI Editor Assistant</h3>
+      <h3 className="mt-4 text-sm font-medium text-gray-300">AI Editor Control</h3>
       <p className="mt-1 text-center text-[11px] leading-relaxed text-gray-600">
         {hasContent
-          ? 'Say "improve writing", "add a callout", "make shorter", or ask any question about your post.'
-          : 'Start with "write an introduction" or "generate an outline" to build your post.'}
+          ? "Tell me to improve writing, add sections, SEO optimize, or make changes. I'll edit the canvas directly."
+          : "Pick a blog format below or describe what you want. I'll write it straight into the editor."}
       </p>
     </div>
   );
 }
 
-const QUICK_ACTIONS = [
+const EDIT_QUICK_ACTIONS = [
   { label: "Improve writing", icon: "✨" },
   { label: "Make shorter", icon: "✂" },
   { label: "Add a callout tip", icon: "💡" },
@@ -140,17 +221,77 @@ const QUICK_ACTIONS = [
   { label: "Generate outline", icon: "📋" },
 ];
 
+// ─── Block label helper ──────────────────────────────────
+function blockLabel(block: { type: string; props: Record<string, unknown> }): string {
+  switch (block.type) {
+    case "heading": return `H${block.props.level ?? 2}: "${String(block.props.text ?? "").slice(0, 40)}"`;
+    case "text": return `Paragraph: "${String(block.props.html ?? "").replace(/<[^>]+>/g, "").slice(0, 40)}…"`;
+    case "image": return `Image: ${String(block.props.alt ?? block.props.caption ?? "").slice(0, 40)}`;
+    case "list": return `List (${(block.props.items as string[] | undefined)?.length ?? 0} items)`;
+    case "callout": return `Callout: "${String(block.props.title ?? "").slice(0, 40)}"`;
+    case "quote": return `Quote: "${String(block.props.text ?? "").slice(0, 40)}…"`;
+    case "divider": return "Divider";
+    default: return block.type.charAt(0).toUpperCase() + block.type.slice(1) + " block";
+  }
+}
+
+// ─── Selected Section Banner ─────────────────────────────
+function SelectedSectionBanner({
+  block,
+  onClear,
+}: {
+  block: { type: string; props: Record<string, unknown> };
+  onClear: () => void;
+}) {
+  return (
+    <div className="mx-3 mb-2 flex items-center justify-between rounded-lg border border-[#39FF14]/20 bg-[#39FF14]/5 px-3 py-2">
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-medium text-[#39FF14]/60 uppercase tracking-wider">Working on section</p>
+        <p className="mt-0.5 truncate text-[11px] text-gray-300">{blockLabel(block)}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onClear}
+        className="ml-2 shrink-0 rounded p-1 text-gray-500 hover:text-gray-300"
+        title="Clear selection — work on whole post"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
 // ─── AI Chat Panel ───────────────────────────────────────
 export function AiChatPanel() {
-  const router = useRouter();
   const projectId = useEditorStore((s) => s.projectId);
   const title = useEditorStore((s) => s.title);
   const document = useEditorStore((s) => s.document);
+  const selectedBlockId = useEditorStore((s) => s.selectedBlockId);
+  const selectBlock = useEditorStore((s) => s.selectBlock);
+  const updateBlock = useEditorStore((s) => s.updateBlock);
   const setDocument = useEditorStore((s) => s.setDocument);
+  const setTitle = useEditorStore((s) => s.setTitle);
+  const setSlug = useEditorStore((s) => s.setSlug);
+  const setExcerpt = useEditorStore((s) => s.setExcerpt);
+  const setFeaturedImage = useEditorStore((s) => s.setFeaturedImage);
+  const setOgImage = useEditorStore((s) => s.setOgImage);
+  const setMetaTitle = useEditorStore((s) => s.setMetaTitle);
+  const setMetaDescription = useEditorStore((s) => s.setMetaDescription);
+
+  // Derived: the currently selected block (if any)
+  const selectedBlock = React.useMemo(
+    () => selectedBlockId ? (document?.blocks ?? []).find((b) => b.id === selectedBlockId) ?? null : null,
+    [selectedBlockId, document?.blocks],
+  ) as { id: string; type: string; props: Record<string, unknown> } | null;
 
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [input, setInput] = React.useState("");
   const [isTyping, setIsTyping] = React.useState(false);
+  const [pendingBlog, setPendingBlog] = React.useState<PendingBlog | null>(null);
+  const [showBlogPicker, setShowBlogPicker] = React.useState(false);
+
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
@@ -158,9 +299,8 @@ export function AiChatPanel() {
 
   const { data: providerInfo } = trpc.ai.getProvider.useQuery(undefined, { staleTime: 60_000 });
 
-  // tRPC mutations
   const chatMutation = trpc.ai.chat.useMutation();
-  const createPostMutation = trpc.ai.createPost.useMutation();
+  const buildBlocksMutation = trpc.ai.buildBlocks.useMutation();
   const editDocumentMutation = trpc.ai.editDocument.useMutation();
 
   // Auto-scroll
@@ -171,14 +311,64 @@ export function AiChatPanel() {
   // Auto-resize textarea
   React.useEffect(() => {
     const ta = textareaRef.current;
-    if (ta) { ta.style.height = "auto"; ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`; }
+    if (ta) {
+      ta.style.height = "auto";
+      ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
+    }
   }, [input]);
 
-  // Apply pending blocks to the editor
+  const addAiMessage = React.useCallback((content: string, extra?: Partial<ChatMessage>) => {
+    setMessages((prev) => [
+      ...prev,
+      { id: `msg-${Date.now()}-ai`, role: "assistant", content, timestamp: new Date(), ...extra },
+    ]);
+  }, []);
+
+  // Write blocks progressively (streaming effect) + all metadata directly to the editor
+  const writeToEditor = React.useCallback(
+    (result: {
+      blocks: unknown[];
+      title?: string;
+      slug?: string;
+      excerpt?: string;
+      metaTitle?: string;
+      metaDescription?: string;
+      featuredImage?: string;
+      ogImage?: string;
+      tags?: string[];
+    }) => {
+      // Set metadata immediately
+      if (result.title) setTitle(result.title);
+      if (result.slug) setSlug(result.slug);
+      if (result.excerpt) setExcerpt(result.excerpt);
+      if (result.metaTitle) setMetaTitle(result.metaTitle);
+      if (result.metaDescription) setMetaDescription(result.metaDescription);
+      if (result.featuredImage) setFeaturedImage(result.featuredImage);
+      if (result.ogImage) setOgImage(result.ogImage);
+      // NOTE: AI tags are keyword strings, not DB tag IDs — do NOT set tagIds
+
+      // Stream blocks into editor one by one for visual effect
+      const blocks = result.blocks;
+      if (!blocks.length) return;
+
+      // Show first block immediately
+      setDocument({ version: 1, blocks: [blocks[0]] as never[], metadata: {} });
+
+      // Add remaining blocks with staggered delay
+      for (let i = 1; i < blocks.length; i++) {
+        const snapshot = blocks.slice(0, i + 1);
+        setTimeout(() => {
+          setDocument({ version: 1, blocks: snapshot as never[], metadata: {} });
+        }, i * 80);
+      }
+    },
+    [setDocument, setTitle, setSlug, setExcerpt, setMetaTitle, setMetaDescription, setFeaturedImage, setOgImage],
+  );
+
+  // Apply pending edit blocks (edit flow still keeps review step)
   const applyBlocks = React.useCallback(
     (blocks: unknown[], msgId: string) => {
       setDocument({ version: 1, blocks: blocks as never[], metadata: {} });
-      // Remove the apply buttons after applying
       setMessages((prev) =>
         prev.map((m) => (m.id === msgId ? { ...m, pendingBlocks: undefined } : m)),
       );
@@ -192,13 +382,59 @@ export function AiChatPanel() {
     );
   }, []);
 
+  // ── Handle blog type selection ──────────────────────────
+  const handleBlogTypeSelected = React.useCallback(
+    async (contentType: BlogTypeId) => {
+      setShowBlogPicker(false);
+      const typeLabel = BLOG_TYPES.find((t) => t.id === contentType)?.label ?? contentType;
+
+      // If we have a pending topic already, write immediately
+      if (pendingBlog?.topic) {
+        const topic = pendingBlog.topic;
+        setPendingBlog(null);
+
+        setMessages((prev) => [
+          ...prev,
+          { id: `msg-${Date.now()}-user`, role: "user", content: typeLabel, timestamp: new Date() },
+        ]);
+        addAiMessage(`Writing your ${typeLabel.toLowerCase()} on "${topic}"… This appears in the editor in a moment.`);
+        setIsTyping(true);
+
+        try {
+          const result = await buildBlocksMutation.mutateAsync({
+            topic,
+            contentType,
+            projectId: projectId ?? undefined,
+          });
+          writeToEditor(result);
+          addAiMessage(`Done! "${result.title}" is ready in the editor (${result.blocks.length} blocks). SEO meta, excerpt, and tags are filled in too. Want me to adjust anything?`);
+        } catch (err) {
+          addAiMessage(`Couldn't generate content: ${err instanceof Error ? err.message : "Unknown error"}`);
+        } finally {
+          setIsTyping(false);
+        }
+        return;
+      }
+
+      // Ask for topic
+      setPendingBlog({ contentType });
+      setMessages((prev) => [
+        ...prev,
+        { id: `msg-${Date.now()}-user`, role: "user", content: typeLabel, timestamp: new Date() },
+      ]);
+      addAiMessage(`Great! What topic should the ${typeLabel.toLowerCase()} cover? (Optional: mention your target audience or keywords too.)`);
+    },
+    [pendingBlog, buildBlocksMutation, projectId, writeToEditor, addAiMessage],
+  );
+
+  // ── Main send handler ────────────────────────────────────
   const sendMessage = React.useCallback(
     async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
 
       const userMsg: ChatMessage = {
-        id: `msg-${Date.now()}`,
+        id: `msg-${Date.now()}-user`,
         role: "user",
         content: trimmed,
         timestamp: new Date(),
@@ -207,70 +443,134 @@ export function AiChatPanel() {
       setInput("");
       setIsTyping(true);
 
-      // ── Create-post intent ─────────────────────────────
-      if (projectId && isCreatePostIntent(trimmed)) {
-        try {
-          const result = await createPostMutation.mutateAsync({ projectId });
-          const aiMsg: ChatMessage = {
-            id: `msg-${Date.now()}-ai`,
-            role: "assistant",
-            content: `✅ Done! Generated:\n\n**${result.title}**\n\nOpening editor…`,
-            timestamp: new Date(),
-            isCreatingPost: true,
-          };
-          setMessages((prev) => [...prev, aiMsg]);
-          setIsTyping(false);
-          setTimeout(() => router.push(`/posts/${result.slug}/edit`), 1500);
-        } catch (err) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `msg-${Date.now()}-ai`,
-              role: "assistant",
-              content: `Error: ${err instanceof Error ? err.message : "Unknown error"}`,
-              timestamp: new Date(),
-            },
-          ]);
-          setIsTyping(false);
-        }
-        return;
-      }
+      // ── Awaiting topic for pending blog ──────────────────
+      if (pendingBlog && !pendingBlog.topic) {
+        const { contentType } = pendingBlog;
+        const typeLabel = BLOG_TYPES.find((t) => t.id === contentType)?.label ?? contentType;
+        setPendingBlog(null);
 
-      // ── Edit intent: modify blocks in real-time ────────
-      if (isEditIntent(trimmed) && (document?.blocks?.length ?? 0) > 0) {
+        addAiMessage(`Writing your ${typeLabel.toLowerCase()} on "${trimmed}"… Watch the editor canvas.`);
+
         try {
-          const result = await editDocumentMutation.mutateAsync({
-            instruction: trimmed,
-            currentBlocks: document?.blocks ?? [],
-            postTitle: title || undefined,
+          const result = await buildBlocksMutation.mutateAsync({
+            topic: trimmed,
+            contentType,
+            projectId: projectId ?? undefined,
           });
-
-          const msgId = `msg-${Date.now()}-ai`;
-          const aiMsg: ChatMessage = {
-            id: msgId,
-            role: "assistant",
-            content: `I've prepared the changes for "${trimmed}". Preview them and click Apply to update your post.`,
-            timestamp: new Date(),
-            pendingBlocks: result.blocks,
-          };
-          setMessages((prev) => [...prev, aiMsg]);
+          writeToEditor(result);
+          addAiMessage(`Done! "${result.title}" is live in the editor (${result.blocks.length} blocks). SEO meta, excerpt, and tags set. Want me to tweak anything?`);
         } catch (err) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `msg-${Date.now()}-ai`,
-              role: "assistant",
-              content: `Couldn't edit: ${err instanceof Error ? err.message : "Unknown error"}`,
-              timestamp: new Date(),
-            },
-          ]);
+          addAiMessage(`Couldn't generate: ${err instanceof Error ? err.message : "Unknown error"}`);
         } finally {
           setIsTyping(false);
         }
         return;
       }
 
-      // ── Regular chat ───────────────────────────────────
+      // ── Write intent: detect type + optional topic ────────
+      if (isWriteIntent(trimmed)) {
+        const contentType = detectBlogType(trimmed);
+        const topic = extractTopic(trimmed);
+        const typeLabel = BLOG_TYPES.find((t) => t.id === contentType)?.label ?? contentType;
+
+        if (topic) {
+          // Have both type and topic — write immediately
+          addAiMessage(`Writing your ${typeLabel.toLowerCase()} on "${topic}"… Watch the editor.`);
+          try {
+            const result = await buildBlocksMutation.mutateAsync({
+              topic,
+              contentType: contentType ?? "blog-post",
+              projectId: projectId ?? undefined,
+            });
+            writeToEditor(result);
+            addAiMessage(`Done! "${result.title}" is in the editor (${result.blocks.length} blocks). SEO meta, excerpt, and tags filled in. Need any changes?`);
+          } catch (err) {
+            addAiMessage(`Generation failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+          } finally {
+            setIsTyping(false);
+          }
+        } else {
+          // No clear topic — write immediately using the raw message as hint
+          // (so "create a blog" → AI picks a relevant topic)
+          addAiMessage(`Got it! Writing a ${typeLabel.toLowerCase()} now… watch the editor.`);
+          try {
+            const result = await buildBlocksMutation.mutateAsync({
+              topic: trimmed, // pass full message; AI will pick a relevant topic from it
+              contentType: contentType ?? "blog-post",
+              projectId: projectId ?? undefined,
+            });
+            writeToEditor(result);
+            addAiMessage(`Done! "${result.title}" is in the editor (${result.blocks.length} blocks). SEO, excerpt, and tags filled in. Want me to change anything?`);
+          } catch (err) {
+            addAiMessage(`Generation failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+          } finally {
+            setIsTyping(false);
+          }
+        }
+        return;
+      }
+
+      // ── Edit intent: modify selected block OR whole document ──
+      if ((isEditIntent(trimmed) || selectedBlock) && hasContent) {
+        try {
+          if (selectedBlock) {
+            // Single-block mode: only edit the focused section
+            const result = await editDocumentMutation.mutateAsync({
+              instruction: trimmed,
+              currentBlocks: [selectedBlock],
+              postTitle: title || undefined,
+            });
+
+            // Splice the result back into the full document
+            const allBlocks = document?.blocks ?? [];
+            const idx = allBlocks.findIndex((b) => b.id === selectedBlock.id);
+            if (idx !== -1) {
+              const updated = [
+                ...allBlocks.slice(0, idx),
+                ...result.blocks,
+                ...allBlocks.slice(idx + 1),
+              ];
+              const msgId = `msg-${Date.now()}-ai`;
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: msgId,
+                  role: "assistant",
+                  content: `Prepared changes to the selected section. Apply when ready.`,
+                  timestamp: new Date(),
+                  pendingBlocks: updated,
+                },
+              ]);
+            }
+          } else {
+            // Full-document mode
+            const result = await editDocumentMutation.mutateAsync({
+              instruction: trimmed,
+              currentBlocks: document?.blocks ?? [],
+              postTitle: title || undefined,
+            });
+
+            const msgId = `msg-${Date.now()}-ai`;
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: msgId,
+                role: "assistant",
+                content: `I've prepared changes for your request. Preview and apply when ready.`,
+                timestamp: new Date(),
+                pendingBlocks: result.blocks,
+              },
+            ]);
+          }
+        } catch (err) {
+          addAiMessage(`Edit failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+        } finally {
+          setIsTyping(false);
+        }
+        return;
+      }
+
+      // ── Regular chat ─────────────────────────────────────
       try {
         const plainContext = (document?.blocks ?? [])
           .map((b) => {
@@ -279,40 +579,50 @@ export function AiChatPanel() {
           })
           .join("\n\n")
           .replace(/<[^>]+>/g, "")
-          .slice(0, 3000);
+          .slice(0, 2000);
 
         const result = await chatMutation.mutateAsync({
           message: trimmed,
           context: (title ? `Title: ${title}\n\n` : "") + plainContext || undefined,
           projectId: projectId ?? undefined,
         });
-        setMessages((prev) => [
-          ...prev,
-          { id: `msg-${Date.now()}-ai`, role: "assistant", content: result.reply, timestamp: new Date() },
-        ]);
+        addAiMessage(result.reply);
       } catch (err) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `msg-${Date.now()}-ai`,
-            role: "assistant",
-            content: `Error: ${err instanceof Error ? err.message : "Check your AI settings."}`,
-            timestamp: new Date(),
-          },
-        ]);
+        addAiMessage(`Error: ${err instanceof Error ? err.message : "Check your AI settings."}`);
       } finally {
         setIsTyping(false);
       }
     },
-    [projectId, title, document, chatMutation, createPostMutation, editDocumentMutation, router],
+    [
+      pendingBlog,
+      projectId,
+      title,
+      document,
+      hasContent,
+      selectedBlock,
+      chatMutation,
+      buildBlocksMutation,
+      editDocumentMutation,
+      writeToEditor,
+      addAiMessage,
+    ],
   );
 
   const handleKeyDown = React.useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(input); }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        void sendMessage(input);
+      }
     },
     [input, sendMessage],
   );
+
+  // Show blog picker (replaces messages temporarily)
+  const triggerBlogPicker = React.useCallback(() => {
+    setPendingBlog(null);
+    setShowBlogPicker(true);
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
@@ -327,16 +637,40 @@ export function AiChatPanel() {
             {providerInfo?.label ?? "AI"}
           </span>
         </div>
-        {messages.length > 0 && (
-          <button type="button" onClick={() => setMessages([])} className="text-[11px] text-gray-500 transition-colors hover:text-gray-300">
-            Clear
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {pendingBlog && (
+            <button
+              type="button"
+              onClick={() => { setPendingBlog(null); setShowBlogPicker(false); }}
+              className="text-[11px] text-gray-500 transition-colors hover:text-gray-300"
+            >
+              Cancel
+            </button>
+          )}
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={() => { setMessages([]); setPendingBlog(null); setShowBlogPicker(false); }}
+              className="text-[11px] text-gray-500 transition-colors hover:text-gray-300"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Messages */}
+      {/* Selected section banner */}
+      {selectedBlock && !showBlogPicker && (
+        <div className="pt-2">
+          <SelectedSectionBanner block={selectedBlock} onClear={() => selectBlock(null)} />
+        </div>
+      )}
+
+      {/* Messages / Blog picker */}
       <div className="flex-1 overflow-y-auto">
-        {messages.length === 0 ? (
+        {showBlogPicker ? (
+          <BlogTypePicker onSelect={(type) => void handleBlogTypeSelected(type)} />
+        ) : messages.length === 0 ? (
           <EmptyState hasContent={hasContent} />
         ) : (
           <div className="space-y-3 p-4">
@@ -350,7 +684,9 @@ export function AiChatPanel() {
             ))}
             {isTyping && (
               <div className="flex justify-start">
-                <div className="rounded-xl bg-gray-900"><TypingIndicator /></div>
+                <div className="rounded-xl bg-gray-900">
+                  <TypingIndicator />
+                </div>
               </div>
             )}
             <div ref={messagesEndRef} />
@@ -361,27 +697,29 @@ export function AiChatPanel() {
       {/* Quick actions */}
       <div className="border-t border-gray-800/50 px-3 pt-3">
         <div className="flex flex-wrap gap-1">
-          {projectId && (
-            <button
-              type="button"
-              onClick={() => void sendMessage("create a new blog post")}
-              disabled={isTyping}
-              className="rounded-full border border-[#39FF14]/20 bg-[#39FF14]/5 px-2.5 py-1 text-[11px] text-[#39FF14]/70 transition-colors hover:border-[#39FF14]/40 hover:bg-[#39FF14]/10 hover:text-[#39FF14] disabled:opacity-40"
-            >
-              ✨ New post
-            </button>
-          )}
-          {QUICK_ACTIONS.map((action) => (
-            <button
-              key={action.label}
-              type="button"
-              onClick={() => { setInput(action.label); textareaRef.current?.focus(); }}
-              disabled={isTyping}
-              className="rounded-full border border-gray-800 bg-gray-950 px-2.5 py-1 text-[11px] text-gray-400 transition-colors hover:border-gray-700 hover:bg-gray-800 hover:text-gray-300 disabled:opacity-40"
-            >
-              {action.icon} {action.label}
-            </button>
-          ))}
+          {/* New post button → opens blog type picker */}
+          <button
+            type="button"
+            onClick={triggerBlogPicker}
+            disabled={isTyping}
+            className="rounded-full border border-[#39FF14]/20 bg-[#39FF14]/5 px-2.5 py-1 text-[11px] text-[#39FF14]/70 transition-colors hover:border-[#39FF14]/40 hover:bg-[#39FF14]/10 hover:text-[#39FF14] disabled:opacity-40"
+          >
+            ✨ New post
+          </button>
+
+          {/* Edit quick actions (only meaningful when there's content) */}
+          {hasContent &&
+            EDIT_QUICK_ACTIONS.map((action) => (
+              <button
+                key={action.label}
+                type="button"
+                onClick={() => { setInput(action.label); textareaRef.current?.focus(); }}
+                disabled={isTyping}
+                className="rounded-full border border-gray-800 bg-gray-950 px-2.5 py-1 text-[11px] text-gray-400 transition-colors hover:border-gray-700 hover:bg-gray-800 hover:text-gray-300 disabled:opacity-40"
+              >
+                {action.icon} {action.label}
+              </button>
+            ))}
         </div>
       </div>
 
@@ -393,7 +731,15 @@ export function AiChatPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={hasContent ? 'Say "improve writing", "add a callout"…' : "Ask anything about your post…"}
+            placeholder={
+              pendingBlog
+                ? `Topic for your ${BLOG_TYPES.find((t) => t.id === pendingBlog.contentType)?.label ?? "post"}…`
+                : selectedBlock
+                ? `Edit this ${selectedBlock.type} block — add image, rewrite, expand…`
+                : hasContent
+                ? "Improve writing, add a section, SEO optimize…"
+                : "Describe what you want to write…"
+            }
             rows={1}
             className="max-h-[120px] min-h-[36px] flex-1 resize-none bg-transparent px-1 py-1 text-[13px] text-gray-300 placeholder:text-gray-600 focus:outline-none"
           />
@@ -409,7 +755,11 @@ export function AiChatPanel() {
           </button>
         </div>
         <p className="mt-1.5 text-center text-[10px] text-gray-600">
-          {hasContent ? "Editing commands apply to your current blocks" : "Shift+Enter for new line"}
+          {pendingBlog
+            ? "AI writes directly into the editor canvas"
+            : hasContent
+            ? "Edit commands apply instantly to the canvas"
+            : "AI writes content directly into the editor"}
         </p>
       </div>
     </div>

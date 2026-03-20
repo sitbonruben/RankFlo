@@ -11,11 +11,10 @@ import { BlockPalette } from "./block-palette";
 import { TemplateGallery } from "./template-gallery";
 import { StylesPanel } from "./styles-panel";
 import { BrandingPanel } from "./branding-panel";
-import { AnalyticsPanel } from "./analytics-panel";
 import { AiChatPanel } from "./ai-chat-panel";
 
 // ─── Panel Definitions ──────────────────────────────────
-type PanelId = "blocks" | "templates" | "styles" | "branding" | "analytics" | "ai-chat";
+type PanelId = "blocks" | "templates" | "styles" | "branding" | "ai-chat";
 
 interface ToolItem {
   id: PanelId;
@@ -138,42 +137,6 @@ const TOOLS: ToolItem[] = [
     ),
   },
   {
-    id: "analytics",
-    label: "Analytics",
-    position: "top",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <rect
-          x="3"
-          y="11"
-          width="3"
-          height="6"
-          rx="0.75"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <rect
-          x="8.5"
-          y="7"
-          width="3"
-          height="10"
-          rx="0.75"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-        <rect
-          x="14"
-          y="3"
-          width="3"
-          height="14"
-          rx="0.75"
-          stroke="currentColor"
-          strokeWidth="1.5"
-        />
-      </svg>
-    ),
-  },
-  {
     id: "ai-chat",
     label: "AI Chat",
     position: "bottom",
@@ -202,8 +165,6 @@ function PanelContent({ panelId }: { panelId: PanelId }) {
       return <StylesPanel />;
     case "branding":
       return <BrandingPanel />;
-    case "analytics":
-      return <AnalyticsPanel />;
     case "ai-chat":
       return <AiChatPanel />;
   }
@@ -220,8 +181,6 @@ function getPanelTitle(id: PanelId): string {
       return "Document Styles";
     case "branding":
       return "Branding";
-    case "analytics":
-      return "Analytics";
     case "ai-chat":
       return "AI Chat";
   }

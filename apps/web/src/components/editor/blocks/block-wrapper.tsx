@@ -156,6 +156,22 @@ export function BlockWrapper({
           isHovered || isSelected ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       >
+        {/* Ask AI — selects this block so AI chat focuses on it */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            selectBlock(id);
+          }}
+          className="flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium text-[#39FF14]/70 transition-colors hover:bg-[#39FF14]/10 hover:text-[#39FF14]"
+          title="Ask AI about this section"
+        >
+          <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+            <path d="M8 2l1.8 3.6L14 6.4l-3 2.6.7 4L8 11.2 4.3 13l.7-4-3-2.6 4.2-.8L8 2z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" fill="currentColor" fillOpacity="0.2" />
+          </svg>
+          Ask AI
+        </button>
+        <div className="mx-0.5 h-3 w-px bg-gray-700" />
         <button
           type="button"
           onClick={(e) => {

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { db } from "@rankflo/db";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io";
-const RANKFLO_PROJECT_ID = "cllr001rankfloproject00000";
+const RANKFLO_PROJECT_ID = process.env.NEXT_PUBLIC_SELF_PROJECT_ID ?? "";
 
 export const dynamic = "force-dynamic";
 

@@ -10,6 +10,7 @@ import {
 
 import { requireRole } from "../middleware/rbac";
 import { router, protectedProcedure, orgProcedure } from "../trpc";
+import { encrypt, decrypt, maskKey } from "../lib/encrypt";
 
 export const organizationRouter = router({
   create: protectedProcedure
@@ -221,17 +222,22 @@ export const organizationRouter = router({
       const provider = (settings.aiProvider as string) ?? null;
       const hasKey = !!(settings.aiApiKey);
       const maskedKey = settings.aiApiKey
-        ? `${(settings.aiApiKey as string).slice(0, 14)}...`
+        ? maskKey(decrypt(settings.aiApiKey as string))
         : null;
-      return { provider, hasKey, maskedKey };
+      const hasImageKey = !!(settings.kieImageApiKey);
+      const maskedImageKey = settings.kieImageApiKey
+        ? maskKey(decrypt(settings.kieImageApiKey as string))
+        : null;
+      return { provider, hasKey, maskedKey, hasImageKey, maskedImageKey };
     }),
 
   updateAISettings: orgProcedure
     .use(requireRole("ADMIN"))
     .input(
       z.object({
-        provider: z.enum(["anthropic", "openai", "google"]),
+        provider: z.enum(["anthropic", "openai", "google", "kie"]),
         apiKey: z.string().min(1),
+        kieImageApiKey: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -240,11 +246,33 @@ export const organizationRouter = router({
         select: { settings: true },
       });
       const current = (org?.settings as Record<string, unknown>) ?? {};
+      const update: Record<string, unknown> = {
+        ...current,
+        aiProvider: input.provider,
+        aiApiKey: encrypt(input.apiKey),
+      };
+      if (input.kieImageApiKey) {
+        update.kieImageApiKey = encrypt(input.kieImageApiKey);
+      }
       await ctx.db.organization.update({
         where: { id: ctx.organizationId },
-        data: {
-          settings: { ...current, aiProvider: input.provider, aiApiKey: input.apiKey },
-        },
+        data: { settings: update },
+      });
+      return { success: true };
+    }),
+
+  updateKieImageKey: orgProcedure
+    .use(requireRole("ADMIN"))
+    .input(z.object({ apiKey: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const org = await ctx.db.organization.findUnique({
+        where: { id: ctx.organizationId },
+        select: { settings: true },
+      });
+      const current = (org?.settings as Record<string, unknown>) ?? {};
+      await ctx.db.organization.update({
+        where: { id: ctx.organizationId },
+        data: { settings: { ...current, kieImageApiKey: encrypt(input.apiKey) } },
       });
       return { success: true };
     }),
@@ -256,7 +284,7 @@ export const organizationRouter = router({
         where: { id: ctx.organizationId },
         select: { settings: true },
       });
-      const { aiProvider: _p, aiApiKey: _k, ...rest } =
+      const { aiProvider: _p, aiApiKey: _k, kieImageApiKey: _img, ...rest } =
         (org?.settings as Record<string, unknown>) ?? {};
       await ctx.db.organization.update({
         where: { id: ctx.organizationId },

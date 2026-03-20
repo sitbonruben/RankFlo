@@ -100,7 +100,7 @@ export default function RootLayout({
         {/* RankFlo self-tracking — records traffic on app.rankflo.io */}
         <Script
           src="/tracker.js"
-          data-project-key="blg_a97ccb6698560cb2bd23a4b8a9e8411f460bcc2f0131aa1f"
+          data-project-key={process.env.NEXT_PUBLIC_SELF_PROJECT_KEY ?? ""}
           strategy="afterInteractive"
         />
       </body>

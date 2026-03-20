@@ -171,6 +171,7 @@ export function EditorTopbar() {
   const title = useEditorStore((s) => s.title);
   const slug = useEditorStore((s) => s.slug);
   const status = useEditorStore((s) => s.status);
+  const projectId = useEditorStore((s) => s.projectId);
   const isDirty = useEditorStore((s) => s.isDirty);
   const isSaving = useEditorStore((s) => s.isSaving);
   const lastSavedAt = useEditorStore((s) => s.lastSavedAt);
@@ -209,7 +210,8 @@ export function EditorTopbar() {
   );
 
   // ─── Build common post payload ──────────────────────────
-  function buildPayload(state: ReturnType<typeof useEditorStore.getState>, resolvedSlug: string) {
+  // isUpdate=true: pass projectId as null to unassign; isUpdate=false: omit when null
+  function buildPayload(state: ReturnType<typeof useEditorStore.getState>, resolvedSlug: string, isUpdate = false) {
     const { contentHtml, contentPlain, readingTime } = computeDerivedContent(state);
     return {
       title: state.title,
@@ -224,6 +226,8 @@ export function EditorTopbar() {
       metaTitle: state.metaTitle || undefined,
       metaDescription: state.metaDescription || undefined,
       ogImage: state.ogImage || undefined,
+      // For updates: pass null to unassign; for creates: omit if no project
+      projectId: isUpdate ? state.projectId : (state.projectId || undefined),
     };
   }
 
@@ -239,7 +243,7 @@ export function EditorTopbar() {
       if (state.postId) {
         await updatePost.mutateAsync({
           id: state.postId,
-          ...buildPayload(state, resolvedSlug),
+          ...buildPayload(state, resolvedSlug, true),
           status: state.status,
         });
       } else {
@@ -285,7 +289,7 @@ export function EditorTopbar() {
         // Existing post: update all fields + publish in one call
         await updatePost.mutateAsync({
           id: state.postId,
-          ...buildPayload(state, resolvedSlug),
+          ...buildPayload(state, resolvedSlug, true),
           status: "PUBLISHED",
         });
       } else {
@@ -424,15 +428,34 @@ export function EditorTopbar() {
           Save draft
         </button>
 
-        {/* Publish / Update — saves everything + sets PUBLISHED */}
-        <button
-          type="button"
-          onClick={handlePublish}
-          disabled={isSaving || !title.trim()}
-          className="inline-flex h-8 items-center rounded-lg bg-white px-4 text-sm font-medium text-black transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isPublished ? "Update" : "Publish"}
-        </button>
+        {/* Publish / Update — requires project selection */}
+        <div className="relative group/publish">
+          <button
+            type="button"
+            onClick={projectId ? handlePublish : undefined}
+            disabled={isSaving || !title.trim() || !projectId}
+            className={`inline-flex h-8 items-center rounded-lg px-4 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+              projectId
+                ? "bg-white text-black hover:bg-gray-200"
+                : "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
+            }`}
+            title={!projectId ? "Select a project in Post Settings before publishing" : undefined}
+          >
+            {!projectId && (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                <line x1="12" y1="9" x2="12" y2="13" />
+                <line x1="12" y1="17" x2="12.01" y2="17" />
+              </svg>
+            )}
+            {isPublished ? "Update" : "Publish"}
+          </button>
+          {!projectId && (
+            <div className="pointer-events-none absolute bottom-full right-0 mb-2 hidden w-48 rounded-lg border border-yellow-500/20 bg-gray-900 p-2.5 text-[11px] text-yellow-400 shadow-xl group-hover/publish:block">
+              Select a project in Post Settings (right panel) to enable publishing.
+            </div>
+          )}
+        </div>
       </div>
     </div>
     </>

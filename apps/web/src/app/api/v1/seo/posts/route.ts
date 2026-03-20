@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
 
     // ─── PARAMS ──────────────────────────────────
     const slug = url.searchParams.get("slug");
-    const status = url.searchParams.get("status") || "PUBLISHED";
+    // Status is always PUBLISHED — the ?status param is intentionally ignored for security.
     const tag = url.searchParams.get("tag");
     const locale = url.searchParams.get("locale");
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
           projectId: project.id,
           organizationId: project.organizationId,
           slug,
+          status: "PUBLISHED",
           deletedAt: null,
         },
         include: {
@@ -96,7 +97,7 @@ export async function GET(req: NextRequest) {
     const where: Record<string, unknown> = {
       projectId: project.id,
       organizationId: project.organizationId,
-      status,
+      status: "PUBLISHED",
       deletedAt: null,
     };
 

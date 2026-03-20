@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import Link from "next/link";
 import { trpc } from "@/trpc/client";
 
-type StatusFilter = "All" | "PUBLISHED" | "DRAFT" | "SCHEDULED" | "ARCHIVED";
+type StatusFilter = "All" | "PUBLISHED" | "DRAFT" | "REVIEW" | "SCHEDULED" | "ARCHIVED";
 
 function timeAgo(date: Date | string): string {
   const d = new Date(date);
@@ -20,16 +20,17 @@ function timeAgo(date: Date | string): string {
 const STATUS_LABELS: Record<string, string> = {
   PUBLISHED: "Published",
   DRAFT: "Draft",
+  REVIEW: "In Review",
   SCHEDULED: "Scheduled",
   ARCHIVED: "Archived",
 };
 
 export default function PostsPage() {
-  const [filter, setFilter] = useState<StatusFilter>("All");
+  const [filter, setFilter] = useState<StatusFilter>("PUBLISHED");
 
   const { data, isLoading } = trpc.post.list.useQuery({
     page: 1,
-    pageSize: 50,
+    pageSize: 100,
     sort: "newest",
     status: filter === "All" ? undefined : (filter as never),
   });
@@ -67,7 +68,7 @@ export default function PostsPage() {
 
       {/* Filters */}
       <div className="flex items-center gap-2 flex-wrap">
-        {(["All", "PUBLISHED", "DRAFT", "SCHEDULED", "ARCHIVED"] as StatusFilter[]).map((f) => (
+        {(["All", "PUBLISHED", "DRAFT", "REVIEW", "SCHEDULED", "ARCHIVED"] as StatusFilter[]).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -138,7 +139,24 @@ export default function PostsPage() {
                       >
                         {post.title || "Untitled"}
                       </Link>
-                      <p className="text-xs text-gray-400 dark:text-gray-600">/{post.slug}</p>
+                      <div className="mt-0.5 flex items-center gap-2">
+                        <p className="text-xs text-gray-400 dark:text-gray-600">/{post.slug}</p>
+                        {(post as { project?: { id: string; name: string } | null }).project ? (
+                          <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
+                            <svg width="8" height="8" viewBox="0 0 16 16" fill="none">
+                              <rect x="2" y="2" width="5" height="5" rx="1" fill="currentColor" />
+                              <rect x="9" y="2" width="5" height="5" rx="1" fill="currentColor" />
+                              <rect x="2" y="9" width="5" height="5" rx="1" fill="currentColor" />
+                              <rect x="9" y="9" width="5" height="5" rx="1" fill="currentColor" opacity="0.4" />
+                            </svg>
+                            {(post as { project?: { id: string; name: string } | null }).project!.name}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded bg-yellow-50 px-1.5 py-0.5 text-[10px] text-yellow-600 dark:bg-yellow-400/10 dark:text-yellow-500">
+                            No project
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-4">
                       <span
@@ -147,12 +165,15 @@ export default function PostsPage() {
                             ? "bg-green-50 text-green-700 border border-green-200 dark:bg-accent-1 dark:text-accent dark:border-accent/20"
                             : post.status === "SCHEDULED"
                             ? "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-400/10 dark:text-blue-400 dark:border-blue-400/20"
+                            : post.status === "REVIEW"
+                            ? "bg-yellow-50 text-yellow-700 border border-yellow-200 dark:bg-yellow-400/10 dark:text-yellow-400 dark:border-yellow-400/20"
                             : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
                         }`}
                       >
                         <span className={`h-1.5 w-1.5 rounded-full ${
                           post.status === "PUBLISHED" ? "bg-green-500 dark:bg-accent"
                           : post.status === "SCHEDULED" ? "bg-blue-400"
+                          : post.status === "REVIEW" ? "bg-yellow-400"
                           : "bg-gray-400 dark:bg-gray-600"
                         }`} />
                         {STATUS_LABELS[post.status] ?? post.status}

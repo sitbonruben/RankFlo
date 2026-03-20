@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useEditorStore } from "@/stores/editor-store";
+import { trpc } from "@/trpc/client";
 import {
   Input,
   Label,
@@ -184,7 +185,15 @@ function PostSettingsContent() {
     excerpt,
     setExcerpt,
     locale,
+    projectId,
+    setProjectId,
   } = useEditorStore();
+
+  // Load org projects for the project selector
+  const { data: projectsData } = trpc.project.list.useQuery(
+    { page: 1, pageSize: 50 },
+    { staleTime: 60_000 },
+  );
 
   const [tagsInput, setTagsInput] = React.useState(tagIds.join(", "));
   const [scheduledDate, setScheduledDate] = React.useState("");
@@ -215,6 +224,38 @@ function PostSettingsContent() {
 
   return (
     <div className="space-y-4">
+      {/* Project */}
+      <div className="space-y-1.5">
+        <Label className="text-xs text-gray-400">Project</Label>
+        <Select
+          value={projectId ?? "none"}
+          onValueChange={(v) => setProjectId(v === "none" ? null : v)}
+        >
+          <SelectTrigger className="h-9 text-xs">
+            <SelectValue placeholder="Select a project…" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">
+              <span className="flex items-center gap-2 text-gray-400">
+                <span className="h-2 w-2 rounded-full bg-gray-500" />
+                No project
+              </span>
+            </SelectItem>
+            {projectsData?.items.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                <span className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-[#39FF14]" />
+                  {p.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {!projectId && (
+          <p className="text-[10px] text-yellow-500/80">⚠ Select a project to enable publishing</p>
+        )}
+      </div>
+
       {/* Status */}
       <div className="space-y-1.5">
         <Label className="text-xs text-gray-400">Status</Label>
