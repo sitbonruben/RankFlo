@@ -51,9 +51,6 @@ importers:
         specifier: ^1.24.0
         version: 1.29.2
     devDependencies:
-      '@rankflo/tsconfig':
-        specifier: workspace:*
-        version: link:../../tooling/typescript
       '@tailwindcss/postcss':
         specifier: ^4.2.1
         version: 4.2.1
