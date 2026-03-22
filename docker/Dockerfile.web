@@ -18,6 +18,9 @@ COPY packages/search/package.json ./packages/search/
 COPY packages/analytics/package.json ./packages/analytics/
 COPY packages/feature-flags/package.json ./packages/feature-flags/
 COPY packages/sdk/package.json ./packages/sdk/
+COPY packages/integrations/package.json ./packages/integrations/
+COPY packages/ai/package.json ./packages/ai/
+COPY packages/mcp/package.json ./packages/mcp/
 COPY tooling/eslint/package.json ./tooling/eslint/
 COPY tooling/typescript/package.json ./tooling/typescript/
 COPY tooling/tailwind/package.json ./tooling/tailwind/
