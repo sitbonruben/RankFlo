@@ -7,6 +7,11 @@ const nextConfig: NextConfig = {
     // Real type safety is enforced via `tsc --noEmit` in CI, not Next build.
     ignoreBuildErrors: true,
   },
+  eslint: {
+    // ESLint runs in a dedicated CI job. Skip it during Docker build to avoid
+    // missing-plugin failures in the build container.
+    ignoreDuringBuilds: true,
+  },
   transpilePackages: [
     "@rankflo/ui",
     "@rankflo/api",
