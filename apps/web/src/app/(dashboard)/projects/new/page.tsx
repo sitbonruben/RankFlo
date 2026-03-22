@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { trpc } from "@/trpc/client";
 
 type Step = "platform" | "details" | "integration" | "branding";
 
@@ -35,6 +36,31 @@ const INTEGRATION_OPTIONS = [
   { id: "REST_API", label: "REST API", desc: "Push content to any REST endpoint", icon: null },
   { id: "SDK", label: "RankFlo SDK", desc: "Fetch content client-side with our JavaScript SDK", icon: null },
 ] as const;
+
+/** Detect platform from a URL hostname. */
+function detectPlatform(url: string): string {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.includes("myshopify.com") || host.includes("shopify.com")) return "SHOPIFY";
+    if (host.includes("wordpress.com") || host.includes("wp.com")) return "WORDPRESS";
+    if (host.includes("wixsite.com") || host.includes("wix.com")) return "WIX";
+    if (host.includes("webflow.io") || host.includes("webflow.com")) return "WEBFLOW";
+    if (host.includes("squarespace.com")) return "SQUARESPACE";
+    if (host.includes("github.io")) return "GATSBY";
+    if (host.includes("vercel.app") || host.includes("netlify.app")) return "NEXTJS";
+  } catch {}
+  return "CUSTOM";
+}
+
+/** Derive a human-readable project name from a URL. */
+function nameFromUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    const part = host.split(".")[0] ?? host;
+    return part.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  } catch {}
+  return "";
+}
 
 function SvgIcon({ path, className = "h-4 w-4" }: { path: string; className?: string }) {
   return (
@@ -73,8 +99,23 @@ function StepIndicator({ steps, current }: { steps: { id: Step; label: string }[
   );
 }
 
+function Spinner() {
+  return (
+    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  );
+}
+
 export default function NewProjectPage() {
   const router = useRouter();
+
+  // ─── Quick Connect state ───────────────────────────────────────────────────
+  const [quickUrl, setQuickUrl] = useState("");
+  const [quickError, setQuickError] = useState("");
+
+  // ─── Wizard state ──────────────────────────────────────────────────────────
   const [step, setStep] = useState<Step>("platform");
   const [platform, setPlatform] = useState<string>("");
   const [name, setName] = useState("");
@@ -97,9 +138,81 @@ export default function NewProjectPage() {
 
   const categories = [...new Set(PLATFORM_OPTIONS.map((p) => p.category))];
 
+  // ─── tRPC mutations ────────────────────────────────────────────────────────
+  const createProject = trpc.project.create.useMutation({
+    onSuccess: (project) => router.push(`/projects/${project.id}`),
+  });
+
+  const extractBrand = trpc.integration.extractBrand.useMutation({
+    onSuccess: (brand) => {
+      if (brand.colors?.primary) setPrimaryColor(brand.colors.primary);
+      if (brand.colors?.background) setBgColor(brand.colors.background);
+      if (brand.colors?.text) setTextColor(brand.colors.text);
+    },
+  });
+
+  // ─── Quick Connect ─────────────────────────────────────────────────────────
+  const handleQuickConnect = async () => {
+    setQuickError("");
+    let parsedUrl = quickUrl.trim();
+    if (!parsedUrl) return;
+    if (!/^https?:\/\//i.test(parsedUrl)) parsedUrl = `https://${parsedUrl}`;
+
+    try {
+      new URL(parsedUrl);
+    } catch {
+      setQuickError("Please enter a valid website URL.");
+      return;
+    }
+
+    const detectedPlatform = detectPlatform(parsedUrl);
+    const detectedName = nameFromUrl(parsedUrl);
+
+    // Try to extract brand colors; don't block creation if it fails
+    let brandColors: { primary: string; background: string; text: string } | undefined;
+    try {
+      const brand = await extractBrand.mutateAsync({ url: parsedUrl });
+      if (brand.colors?.primary && brand.colors?.background && brand.colors?.text) {
+        brandColors = {
+          primary: brand.colors.primary,
+          background: brand.colors.background,
+          text: brand.colors.text,
+        };
+      }
+    } catch {}
+
+    createProject.mutate({
+      name: detectedName || "My Project",
+      url: parsedUrl,
+      platform: detectedPlatform as Parameters<typeof createProject.mutate>[0]["platform"],
+      contentFormat: "MARKDOWN",
+      ...(brandColors && { brandColors }),
+    });
+  };
+
+  const isQuickLoading = extractBrand.isPending || createProject.isPending;
+
+  // ─── Wizard create ─────────────────────────────────────────────────────────
   const handleCreate = () => {
-    // TODO: Wire to tRPC mutation
-    router.push("/projects");
+    createProject.mutate({
+      name,
+      description: description || undefined,
+      url: url || undefined,
+      platform: (platform || "CUSTOM") as Parameters<typeof createProject.mutate>[0]["platform"],
+      integrationType: (integration || undefined) as Parameters<typeof createProject.mutate>[0]["integrationType"],
+      contentFormat: contentFormat as Parameters<typeof createProject.mutate>[0]["contentFormat"],
+      brandColors: {
+        primary: primaryColor,
+        background: bgColor,
+        text: textColor,
+      },
+    });
+  };
+
+  // ─── Extract brand in wizard ───────────────────────────────────────────────
+  const handleExtractBrand = () => {
+    if (!url) return;
+    extractBrand.mutate({ url });
   };
 
   return (
@@ -116,6 +229,57 @@ export default function NewProjectPage() {
           <h1 className="text-2xl font-bold tracking-tight">Connect a Project</h1>
           <p className="mt-0.5 text-sm text-gray-500">Link your website, app, or store to start creating content</p>
         </div>
+      </div>
+
+      {/* ─── QUICK CONNECT ─── */}
+      <div className="rounded-xl border border-green-200 dark:border-accent/30 bg-green-50/50 dark:bg-accent/5 p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-green-600 dark:bg-accent">
+            <SvgIcon path="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.193-9.193a4.5 4.5 0 00-6.364 0l-4.5 4.5a4.5 4.5 0 001.242 7.244" className="h-4 w-4 text-white dark:text-black" />
+          </div>
+          <div>
+            <span className="text-sm font-semibold text-gray-900 dark:text-white">Quick Connect</span>
+            <span className="ml-2 text-xs text-gray-500">Paste any website URL — we auto-detect platform &amp; branding</span>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={quickUrl}
+            onChange={(e) => { setQuickUrl(e.target.value); setQuickError(""); }}
+            onKeyDown={(e) => e.key === "Enter" && !isQuickLoading && handleQuickConnect()}
+            placeholder="https://mysite.com"
+            className="h-10 flex-1 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:border-green-500 dark:focus:border-accent focus:outline-none"
+          />
+          <button
+            onClick={handleQuickConnect}
+            disabled={!quickUrl.trim() || isQuickLoading}
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-green-600 dark:bg-accent px-4 text-sm font-semibold text-white dark:text-black transition-colors hover:bg-green-700 dark:hover:bg-accent-9 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isQuickLoading ? (
+              <>
+                <Spinner />
+                {extractBrand.isPending ? "Scanning…" : "Creating…"}
+              </>
+            ) : (
+              <>
+                <SvgIcon path="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                Connect
+              </>
+            )}
+          </button>
+        </div>
+        {quickError && <p className="mt-2 text-xs text-red-500">{quickError}</p>}
+        {createProject.isError && (
+          <p className="mt-2 text-xs text-red-500">{createProject.error.message}</p>
+        )}
+        <p className="mt-2 text-xs text-gray-400">Works with any website — Next.js, Shopify, WordPress, Webflow, Wix, custom apps, and more.</p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+        <span className="text-xs text-gray-400">or set up manually</span>
+        <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
       </div>
 
       {/* Step indicator */}
@@ -145,10 +309,7 @@ export default function NewProjectPage() {
                           : "border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900/50"
                       }`}
                     >
-                      <span
-                        className="text-sm font-semibold"
-                        style={{ color: platform === p.id ? p.color : undefined }}
-                      >
+                      <span className="text-sm font-semibold">
                         {platform === p.id ? (
                           <span style={{ color: p.color }}>{p.label}</span>
                         ) : (
@@ -195,7 +356,10 @@ export default function NewProjectPage() {
                 />
               </div>
               <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Website URL</label>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Website URL
+                  <span className="ml-1.5 text-xs font-normal text-gray-400">Used to extract branding automatically</span>
+                </label>
                 <input
                   type="url"
                   value={url}
@@ -398,11 +562,22 @@ export default function NewProjectPage() {
                     <span>AI can auto-detect branding from your URL</span>
                   </div>
                   <button
-                    disabled={!url}
+                    onClick={handleExtractBrand}
+                    disabled={!url || extractBrand.isPending}
                     className="mt-2 inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-300 dark:border-gray-700 px-3 text-xs font-medium text-gray-700 dark:text-gray-300 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Extract from website
+                    {extractBrand.isPending ? (
+                      <><Spinner /> Scanning…</>
+                    ) : (
+                      "Extract from website"
+                    )}
                   </button>
+                  {!url && (
+                    <p className="mt-1.5 text-xs text-gray-400">Add a website URL in the Details step to enable this.</p>
+                  )}
+                  {extractBrand.isError && (
+                    <p className="mt-1.5 text-xs text-red-500">Could not extract branding — set colors manually.</p>
+                  )}
                 </div>
               </div>
 
@@ -438,12 +613,22 @@ export default function NewProjectPage() {
               </button>
               <button
                 onClick={handleCreate}
-                className="inline-flex h-10 items-center gap-2 rounded-lg bg-green-600 dark:bg-accent px-5 text-sm font-semibold text-white dark:text-black transition-colors hover:bg-green-700 dark:hover:bg-accent-9"
+                disabled={createProject.isPending}
+                className="inline-flex h-10 items-center gap-2 rounded-lg bg-green-600 dark:bg-accent px-5 text-sm font-semibold text-white dark:text-black transition-colors hover:bg-green-700 dark:hover:bg-accent-9 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <SvgIcon path="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.193-9.193a4.5 4.5 0 00-6.364 0l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
-                Connect Project
+                {createProject.isPending ? (
+                  <><Spinner /> Creating…</>
+                ) : (
+                  <>
+                    <SvgIcon path="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.193-9.193a4.5 4.5 0 00-6.364 0l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                    Connect Project
+                  </>
+                )}
               </button>
             </div>
+            {createProject.isError && (
+              <p className="text-center text-xs text-red-500">{createProject.error.message}</p>
+            )}
           </div>
         )}
       </div>

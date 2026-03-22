@@ -2,7 +2,39 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { trpc } from "@/trpc/client";
+
+function detectPlatform(url: string): string {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.includes("myshopify.com") || host.includes("shopify.com")) return "SHOPIFY";
+    if (host.includes("wordpress.com") || host.includes("wp.com")) return "WORDPRESS";
+    if (host.includes("wixsite.com") || host.includes("wix.com")) return "WIX";
+    if (host.includes("webflow.io") || host.includes("webflow.com")) return "WEBFLOW";
+    if (host.includes("squarespace.com")) return "SQUARESPACE";
+    if (host.includes("vercel.app") || host.includes("netlify.app")) return "NEXTJS";
+  } catch {}
+  return "CUSTOM";
+}
+
+function nameFromUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    const part = host.split(".")[0] ?? host;
+    return part.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  } catch {}
+  return "My Project";
+}
+
+function Spinner() {
+  return (
+    <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+    </svg>
+  );
+}
 
 const PLATFORMS: Record<string, { label: string; bg: string }> = {
   NEXTJS:      { label: "Next.js",      bg: "bg-gray-200/50 dark:bg-white/10" },
@@ -47,8 +79,47 @@ function SvgIcon({ path, className = "h-4 w-4" }: { path: string; className?: st
 type FilterType = "all" | "ACTIVE" | "SETUP" | "PAUSED" | "ARCHIVED";
 
 export default function ProjectsPage() {
+  const router = useRouter();
   const [filter, setFilter] = useState<FilterType>("all");
   const [search, setSearch] = useState("");
+
+  // Quick Connect
+  const [quickUrl, setQuickUrl] = useState("");
+  const [quickError, setQuickError] = useState("");
+
+  const extractBrand = trpc.integration.extractBrand.useMutation();
+  const createProject = trpc.project.create.useMutation({
+    onSuccess: (project) => router.push(`/projects/${project.id}`),
+  });
+
+  const isQuickLoading = extractBrand.isPending || createProject.isPending;
+
+  const handleQuickConnect = async () => {
+    setQuickError("");
+    let parsedUrl = quickUrl.trim();
+    if (!parsedUrl) return;
+    if (!/^https?:\/\//i.test(parsedUrl)) parsedUrl = `https://${parsedUrl}`;
+    try { new URL(parsedUrl); } catch { setQuickError("Please enter a valid URL."); return; }
+
+    const detectedPlatform = detectPlatform(parsedUrl);
+    const detectedName = nameFromUrl(parsedUrl);
+
+    let brandColors: { primary: string; background: string; text: string } | undefined;
+    try {
+      const brand = await extractBrand.mutateAsync({ url: parsedUrl });
+      if (brand.colors?.primary && brand.colors?.background && brand.colors?.text) {
+        brandColors = { primary: brand.colors.primary, background: brand.colors.background, text: brand.colors.text };
+      }
+    } catch {}
+
+    createProject.mutate({
+      name: detectedName || "My Project",
+      url: parsedUrl,
+      platform: detectedPlatform as Parameters<typeof createProject.mutate>[0]["platform"],
+      contentFormat: "MARKDOWN",
+      ...(brandColors && { brandColors }),
+    });
+  };
 
   const { data, isLoading } = trpc.project.list.useQuery({
     page: 1,
@@ -80,6 +151,36 @@ export default function ProjectsPage() {
           </svg>
           Connect project
         </Link>
+      </div>
+
+      {/* Quick Connect bar */}
+      <div className="flex flex-col gap-2 rounded-xl border border-green-200 dark:border-accent/30 bg-green-50/50 dark:bg-accent/5 px-4 py-3">
+        <div className="flex items-center gap-2">
+          <svg className="h-4 w-4 text-green-600 dark:text-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+          </svg>
+          <span className="text-sm font-semibold text-gray-900 dark:text-white">Quick Connect</span>
+          <span className="text-xs text-gray-400">— paste any URL, we auto-detect platform &amp; branding</span>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={quickUrl}
+            onChange={(e) => { setQuickUrl(e.target.value); setQuickError(""); }}
+            onKeyDown={(e) => e.key === "Enter" && !isQuickLoading && handleQuickConnect()}
+            placeholder="https://mysite.com  —  works with Shopify, WordPress, Webflow, Next.js, or any site"
+            className="h-10 flex-1 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-3 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:border-green-500 dark:focus:border-accent focus:outline-none"
+          />
+          <button
+            onClick={handleQuickConnect}
+            disabled={!quickUrl.trim() || isQuickLoading}
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-green-600 dark:bg-accent px-4 text-sm font-semibold text-white dark:text-black transition-colors hover:bg-green-700 dark:hover:bg-accent-9 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isQuickLoading ? <><Spinner />{extractBrand.isPending ? "Scanning…" : "Creating…"}</> : "Connect"}
+          </button>
+        </div>
+        {quickError && <p className="text-xs text-red-500">{quickError}</p>}
+        {createProject.isError && <p className="text-xs text-red-500">{createProject.error.message}</p>}
       </div>
 
       {/* Stats row */}
