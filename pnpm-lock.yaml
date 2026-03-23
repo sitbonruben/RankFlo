@@ -319,6 +319,9 @@ importers:
       '@rankflo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.13
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -335,6 +338,9 @@ importers:
       '@rankflo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.13
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -372,6 +378,9 @@ importers:
       '@rankflo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.13
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -388,6 +397,9 @@ importers:
       '@rankflo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.13
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -417,6 +429,9 @@ importers:
       '@rankflo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.13
       prisma:
         specifier: ^6.1.0
         version: 6.19.2(typescript@5.9.3)
@@ -445,6 +460,9 @@ importers:
       '@rankflo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.13
       '@types/nodemailer':
         specifier: ^6.4.17
         version: 6.4.23
@@ -495,6 +513,9 @@ importers:
       '@rankflo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.13
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -533,6 +554,9 @@ importers:
       '@rankflo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.13
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -619,6 +643,9 @@ importers:
       '@rankflo/tsconfig':
         specifier: workspace:*
         version: link:../../tooling/typescript
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.19.13
       typescript:
         specifier: ^5.7.2
         version: 5.9.3

@@ -98,7 +98,7 @@ export class ShopifyConnector extends BaseConnector {
       {
         method: "POST",
         headers: this.headers,
-        body: { blog: { title: "Blog" } },
+        body: JSON.stringify({ blog: { title: "Blog" } }),
       },
     );
 
@@ -277,7 +277,7 @@ export class ShopifyConnector extends BaseConnector {
       {
         method: "POST",
         headers: this.headers,
-        body: { article: articlePayload },
+        body: JSON.stringify({ article: articlePayload }),
       },
     );
 
@@ -317,7 +317,7 @@ export class ShopifyConnector extends BaseConnector {
       {
         method: "PUT",
         headers: this.headers,
-        body: { article: articlePayload },
+        body: JSON.stringify({ article: articlePayload }),
       },
     );
 

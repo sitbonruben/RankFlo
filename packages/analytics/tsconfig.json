@@ -1,6 +1,6 @@
 {
   "extends": "@rankflo/tsconfig/library.json",
-  "compilerOptions": { "outDir": "./dist" },
+  "compilerOptions": { "outDir": "./dist", "types": ["node"] },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

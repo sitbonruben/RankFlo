@@ -296,7 +296,7 @@ export class RestConnector extends BaseConnector {
     const body = await this.fetchJson<unknown>(url, {
       method: "POST",
       headers: this.getAuthHeaders(),
-      body: payload,
+      body: JSON.stringify(payload),
     });
 
     return this.mapToContentItem(body);
@@ -328,7 +328,7 @@ export class RestConnector extends BaseConnector {
     const body = await this.fetchJson<unknown>(url, {
       method: "PUT",
       headers: this.getAuthHeaders(),
-      body: payload,
+      body: JSON.stringify(payload),
     });
 
     return this.mapToContentItem(body);

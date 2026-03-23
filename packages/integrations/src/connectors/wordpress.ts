@@ -215,7 +215,7 @@ export class WordPressConnector extends BaseConnector {
           {
             method: "POST",
             headers: this.headers,
-            body: { name },
+            body: JSON.stringify({ name }),
           },
         );
         ids.push(newTag.id);
@@ -388,7 +388,7 @@ export class WordPressConnector extends BaseConnector {
       {
         method: "POST",
         headers: this.headers,
-        body: payload,
+        body: JSON.stringify(payload),
       },
     );
 
@@ -422,7 +422,7 @@ export class WordPressConnector extends BaseConnector {
       {
         method: "POST",
         headers: this.headers,
-        body: payload,
+        body: JSON.stringify(payload),
       },
     );
 

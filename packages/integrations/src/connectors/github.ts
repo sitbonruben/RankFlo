@@ -156,7 +156,7 @@ export class GitHubConnector extends BaseConnector {
     return this.fetchJson<T>(this.repoUrl(path), {
       method,
       headers: this.headers,
-      body,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
     });
   }
 

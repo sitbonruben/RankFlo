@@ -286,11 +286,11 @@ export class WebflowConnector extends BaseConnector {
       {
         method: "POST",
         headers: this.headers,
-        body: {
+        body: JSON.stringify({
           isArchived: false,
           isDraft: item.status === "draft",
           fieldData,
-        },
+        }),
       },
     );
 
@@ -319,7 +319,7 @@ export class WebflowConnector extends BaseConnector {
       {
         method: "PATCH",
         headers: this.headers,
-        body: payload,
+        body: JSON.stringify(payload),
       },
     );
 
@@ -387,7 +387,7 @@ export class WebflowConnector extends BaseConnector {
           {
             method: "POST",
             headers: this.headers,
-            body: { itemIds: createdIds },
+            body: JSON.stringify({ itemIds: createdIds }),
           },
         );
       } catch (error) {

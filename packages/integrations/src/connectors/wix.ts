@@ -152,11 +152,11 @@ export class WixConnector extends BaseConnector {
         {
           method: "POST",
           headers: this.headers,
-          body: {
+          body: JSON.stringify({
             query: {
               paging: { limit: 1, offset: 0 },
             },
-          },
+          }),
         },
       );
       this.connected = true;
@@ -176,11 +176,11 @@ export class WixConnector extends BaseConnector {
         {
           method: "POST",
           headers: this.headers,
-          body: {
+          body: JSON.stringify({
             query: {
               paging: { limit: 1, offset: 0 },
             },
-          },
+          }),
         },
       );
       return { ok: true };
@@ -204,11 +204,11 @@ export class WixConnector extends BaseConnector {
       {
         method: "POST",
         headers: this.headers,
-        body: {
+        body: JSON.stringify({
           query: {
             paging: { limit: 1, offset: 0 },
           },
-        },
+        }),
       },
     );
 
@@ -269,7 +269,7 @@ export class WixConnector extends BaseConnector {
       {
         method: "POST",
         headers: this.headers,
-        body: { query },
+        body: JSON.stringify({ query }),
       },
     );
 
@@ -315,7 +315,7 @@ export class WixConnector extends BaseConnector {
       {
         method: "POST",
         headers: this.headers,
-        body: payload,
+        body: JSON.stringify(payload),
       },
     );
 
@@ -327,7 +327,7 @@ export class WixConnector extends BaseConnector {
           {
             method: "POST",
             headers: this.headers,
-            body: {},
+            body: JSON.stringify({}),
           },
         );
         return this.postToContentItem(published.post);
@@ -357,7 +357,7 @@ export class WixConnector extends BaseConnector {
       {
         method: "PATCH",
         headers: this.headers,
-        body: { post: postUpdates },
+        body: JSON.stringify({ post: postUpdates }),
       },
     );
 
@@ -369,7 +369,7 @@ export class WixConnector extends BaseConnector {
           {
             method: "POST",
             headers: this.headers,
-            body: {},
+            body: JSON.stringify({}),
           },
         );
         return this.postToContentItem(published.post);

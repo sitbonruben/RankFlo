@@ -156,7 +156,7 @@ export class GraphQLConnector extends BaseConnector {
       {
         method: "POST",
         headers: this.getHeaders(),
-        body: { query, variables },
+        body: JSON.stringify({ query, variables }),
       },
     );
 

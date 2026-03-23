@@ -1,3 +1,6 @@
 {
-  "extends": "@rankflo/tsconfig/library.json"
+  "extends": "@rankflo/tsconfig/library.json",
+  "compilerOptions": {
+    "types": ["node"]
+  }
 }
