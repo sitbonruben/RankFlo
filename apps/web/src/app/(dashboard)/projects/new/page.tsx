@@ -139,8 +139,10 @@ export default function NewProjectPage() {
   const categories = [...new Set(PLATFORM_OPTIONS.map((p) => p.category))];
 
   // ─── tRPC mutations ────────────────────────────────────────────────────────
+  const [isQuickConnectFlow, setIsQuickConnectFlow] = useState(false);
   const createProject = trpc.project.create.useMutation({
-    onSuccess: (project) => router.push(`/projects/${project.id}`),
+    onSuccess: (project) =>
+      router.push(isQuickConnectFlow ? `/projects/${project.id}?tab=integration` : `/projects/${project.id}`),
   });
 
   const extractBrand = trpc.integration.extractBrand.useMutation({
@@ -153,6 +155,7 @@ export default function NewProjectPage() {
 
   // ─── Quick Connect ─────────────────────────────────────────────────────────
   const handleQuickConnect = async () => {
+    setIsQuickConnectFlow(true);
     setQuickError("");
     let parsedUrl = quickUrl.trim();
     if (!parsedUrl) return;
@@ -168,8 +171,10 @@ export default function NewProjectPage() {
     const detectedPlatform = detectPlatform(parsedUrl);
     const detectedName = nameFromUrl(parsedUrl);
 
-    // Try to extract brand colors; don't block creation if it fails
+    // Try to extract brand info; don't block creation if it fails
     let brandColors: { primary: string; background: string; text: string } | undefined;
+    let brandLogo: string | undefined;
+    let detectedNameFromBrand: string | undefined;
     try {
       const brand = await extractBrand.mutateAsync({ url: parsedUrl });
       if (brand.colors?.primary && brand.colors?.background && brand.colors?.text) {
@@ -179,14 +184,18 @@ export default function NewProjectPage() {
           text: brand.colors.text,
         };
       }
+      if (brand.logoUrl) brandLogo = brand.logoUrl;
+      else if (brand.faviconUrl) brandLogo = brand.faviconUrl;
+      if (brand.siteName) detectedNameFromBrand = brand.siteName;
     } catch {}
 
     createProject.mutate({
-      name: detectedName || "My Project",
+      name: detectedNameFromBrand || detectedName || "My Project",
       url: parsedUrl,
       platform: detectedPlatform as Parameters<typeof createProject.mutate>[0]["platform"],
       contentFormat: "MARKDOWN",
       ...(brandColors && { brandColors }),
+      ...(brandLogo && { brandLogo }),
     });
   };
 
