@@ -69,12 +69,12 @@ export function hasPermission(
   role: Role,
   permission: Permission,
 ): boolean {
-  const perms = PERMISSIONS[role];
+  const perms = PERMISSIONS[role] as readonly string[];
   if (perms.includes("*")) return true;
-  if (perms.includes(permission as never)) return true;
+  if (perms.includes(permission)) return true;
 
   const basePermission = permission.replace(":own", "");
-  return perms.includes(basePermission as never);
+  return perms.includes(basePermission);
 }
 
 export function isRoleAtLeast(role: Role, minimumRole: Role): boolean {
