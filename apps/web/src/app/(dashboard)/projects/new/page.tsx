@@ -143,6 +143,11 @@ export default function NewProjectPage() {
   const createProject = trpc.project.create.useMutation({
     onSuccess: (project) =>
       router.push(isQuickConnectFlow ? `/projects/${project.id}?tab=integration` : `/projects/${project.id}`),
+    onError: (err) => {
+      if (isQuickConnectFlow && err.message.includes("Unique constraint")) {
+        setQuickError("A project with this name already exists. Try a different URL or go to Projects to rename it.");
+      }
+    },
   });
 
   const extractBrand = trpc.integration.extractBrand.useMutation({

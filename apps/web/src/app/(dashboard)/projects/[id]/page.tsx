@@ -255,6 +255,11 @@ export default function ProjectDetailPage() {
 
   const { data: project, isLoading, refetch } = trpc.project.getById.useQuery({ id });
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const deleteProject = trpc.project.delete.useMutation({
+    onSuccess: () => router.push("/projects"),
+  });
+
   const updateProject = trpc.project.update.useMutation({
     onSuccess: () => {
       refetch();
@@ -893,9 +898,31 @@ export default function ProjectDetailPage() {
               <button className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-500 transition-colors hover:border-amber-300 hover:text-amber-600 dark:border-gray-800 dark:text-gray-400">
                 Pause project
               </button>
-              <button className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-200 px-3 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-900/50 dark:text-red-400">
-                Delete project
-              </button>
+              {!showDeleteConfirm ? (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-red-200 px-3 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 dark:border-red-900/50 dark:text-red-400"
+                >
+                  Delete project
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-red-600">Are you sure?</span>
+                  <button
+                    onClick={() => deleteProject.mutate({ id })}
+                    disabled={deleteProject.isPending}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-red-600 px-3 text-xs font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {deleteProject.isPending ? "Deleting…" : "Yes, delete"}
+                  </button>
+                  <button
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 dark:border-gray-800"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
