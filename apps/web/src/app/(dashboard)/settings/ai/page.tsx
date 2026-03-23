@@ -10,6 +10,7 @@ const PROVIDERS = [
     description: "Claude models (Sonnet, Opus)",
     placeholder: "sk-ant-api03-...",
     docsUrl: "https://console.anthropic.com/settings/keys",
+    hasModels: false,
   },
   {
     id: "openai",
@@ -17,6 +18,7 @@ const PROVIDERS = [
     description: "GPT models (gpt-4o, gpt-4-turbo)",
     placeholder: "sk-proj-...",
     docsUrl: "https://platform.openai.com/api-keys",
+    hasModels: true,
   },
   {
     id: "google",
@@ -24,6 +26,7 @@ const PROVIDERS = [
     description: "Gemini models (gemini-2.0-flash)",
     placeholder: "AIza...",
     docsUrl: "https://aistudio.google.com/apikey",
+    hasModels: false,
   },
   {
     id: "kie",
@@ -31,6 +34,15 @@ const PROVIDERS = [
     description: "Gemini & GPT models + image generation",
     placeholder: "kie-...",
     docsUrl: "https://kie.ai",
+    hasModels: false,
+  },
+  {
+    id: "ollama",
+    label: "Ollama",
+    description: "Local models (Llama, Mistral, Gemma\u2026)",
+    placeholder: "http://localhost:11434",
+    docsUrl: "https://ollama.com",
+    hasModels: true,
   },
 ] as const;
 
@@ -39,6 +51,9 @@ type ProviderId = (typeof PROVIDERS)[number]["id"];
 export default function SettingsAIPage() {
   const [selectedProvider, setSelectedProvider] = useState<ProviderId>("anthropic");
   const [apiKey, setApiKey] = useState("");
+  const [baseUrl, setBaseUrl] = useState("");
+  const [selectedModel, setSelectedModel] = useState("");
+  const [fetchedModels, setFetchedModels] = useState<string[]>([]);
   const [imageKey, setImageKey] = useState("");
   const [saved, setSaved] = useState(false);
   const [imageSaved, setImageSaved] = useState(false);
@@ -51,7 +66,7 @@ export default function SettingsAIPage() {
       setApiKey("");
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-      refetch();
+      void refetch();
     },
   });
 
@@ -60,21 +75,49 @@ export default function SettingsAIPage() {
       setImageKey("");
       setImageSaved(true);
       setTimeout(() => setImageSaved(false), 3000);
-      refetch();
+      void refetch();
     },
   });
 
   const clear = trpc.organization.clearAISettings.useMutation({
     onSuccess: () => {
       setClearConfirm(false);
-      refetch();
+      setFetchedModels([]);
+      setSelectedModel("");
+      void refetch();
     },
   });
 
+  const fetchModelsMutation = trpc.organization.fetchModels.useMutation({
+    onSuccess: (result) => {
+      setFetchedModels(result.models);
+      if (result.models.length > 0 && !selectedModel) {
+        setSelectedModel(result.models[0] ?? "");
+      }
+    },
+  });
+
+  const activeProvider = PROVIDERS.find((p) => p.id === selectedProvider)!;
+  const isOllama = selectedProvider === "ollama";
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!apiKey.trim()) return;
-    update.mutate({ provider: selectedProvider, apiKey: apiKey.trim() });
+    // Ollama: URL is required but API key is optional
+    if (isOllama) {
+      const url = baseUrl.trim() || "http://localhost:11434";
+      update.mutate({
+        provider: "ollama",
+        baseUrl: url,
+        model: selectedModel || undefined,
+      });
+    } else {
+      if (!apiKey.trim()) return;
+      update.mutate({
+        provider: selectedProvider,
+        apiKey: apiKey.trim(),
+        model: selectedModel || undefined,
+      });
+    }
   };
 
   const handleImageSave = (e: React.FormEvent) => {
@@ -83,7 +126,24 @@ export default function SettingsAIPage() {
     updateImage.mutate({ apiKey: imageKey.trim() });
   };
 
-  const activeProvider = PROVIDERS.find((p) => p.id === selectedProvider)!;
+  const handleFetchModels = () => {
+    if (isOllama) {
+      fetchModelsMutation.mutate({
+        provider: "ollama",
+        baseUrl: baseUrl.trim() || undefined,
+      });
+    } else if (selectedProvider === "openai") {
+      fetchModelsMutation.mutate({
+        provider: "openai",
+        apiKey: apiKey.trim() || undefined,
+      });
+    }
+  };
+
+  // Determine whether the save button should be enabled
+  const canSave = isOllama
+    ? true // can always save ollama (uses default URL if blank)
+    : !!apiKey.trim();
 
   return (
     <div className="space-y-6">
@@ -106,16 +166,69 @@ export default function SettingsAIPage() {
               </svg>
             </span>
             <div>
-              <p className="text-sm font-medium text-green-400">API key connected</p>
+              <p className="text-sm font-medium text-green-400">AI provider connected</p>
               <p className="text-xs text-gray-500">
                 Provider: <span className="text-gray-400 capitalize">{data.provider}</span>
-                {" · "}Key: <code className="text-gray-400">{data.maskedKey}</code>
+                {data.model && (
+                  <>{" · "}Model: <span className="text-gray-400">{data.model}</span></>
+                )}
+                {data.maskedKey && (
+                  <>{" · "}Key: <code className="text-gray-400">{data.maskedKey}</code></>
+                )}
+                {data.baseUrl && (
+                  <>{" · "}URL: <span className="text-gray-400">{data.baseUrl}</span></>
+                )}
               </p>
             </div>
           </div>
           {clearConfirm ? (
             <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400">Remove key?</span>
+              <span className="text-xs text-gray-400">Remove settings?</span>
+              <button
+                onClick={() => clear.mutate()}
+                disabled={clear.isPending}
+                className="text-xs text-red-400 hover:text-red-300"
+              >
+                Yes, remove
+              </button>
+              <button
+                onClick={() => setClearConfirm(false)}
+                className="text-xs text-gray-500 hover:text-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setClearConfirm(true)}
+              className="text-xs text-gray-500 hover:text-red-400 transition-colors"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Ollama status (no API key required) */}
+      {data?.provider === "ollama" && !data.hasKey && (
+        <div className="flex items-center justify-between rounded-xl border border-green-800/40 bg-green-950/20 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-green-900/50 text-green-400">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </span>
+            <div>
+              <p className="text-sm font-medium text-green-400">Ollama connected</p>
+              <p className="text-xs text-gray-500">
+                URL: <span className="text-gray-400">{data.baseUrl ?? "http://localhost:11434"}</span>
+                {data.model && <>{" · "}Model: <span className="text-gray-400">{data.model}</span></>}
+              </p>
+            </div>
+          </div>
+          {clearConfirm ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">Remove settings?</span>
               <button
                 onClick={() => clear.mutate()}
                 disabled={clear.isPending}
@@ -145,12 +258,16 @@ export default function SettingsAIPage() {
       <div className="rounded-xl border border-gray-800 bg-gray-950 p-5 space-y-5">
         <div>
           <p className="text-sm font-medium text-white mb-3">Select provider</p>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {PROVIDERS.map((p) => (
               <button
                 key={p.id}
                 type="button"
-                onClick={() => setSelectedProvider(p.id)}
+                onClick={() => {
+                  setSelectedProvider(p.id);
+                  setFetchedModels([]);
+                  setSelectedModel("");
+                }}
                 className={`rounded-lg border px-4 py-3 text-left transition-colors ${
                   selectedProvider === p.id
                     ? "border-accent/60 bg-accent/10 text-white"
@@ -164,32 +281,115 @@ export default function SettingsAIPage() {
           </div>
         </div>
 
-        {/* API key input */}
+        {/* Form */}
         <form onSubmit={handleSave} className="space-y-3">
-          <div>
-            <label className="text-sm font-medium text-white">
-              {activeProvider.label} API Key
-            </label>
-            <p className="mt-0.5 text-xs text-gray-500">
-              Get your key from{" "}
-              <a
-                href={activeProvider.docsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent hover:underline"
-              >
-                {activeProvider.docsUrl.replace("https://", "")}
-              </a>
-            </p>
-            <input
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder={data?.hasKey && data.provider === selectedProvider ? data.maskedKey ?? activeProvider.placeholder : activeProvider.placeholder}
-              className="mt-2 w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm font-mono text-white placeholder:text-gray-600 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
-              autoComplete="off"
-            />
-          </div>
+          {isOllama ? (
+            /* Ollama: show URL input instead of API key */
+            <div>
+              <label className="text-sm font-medium text-white">Ollama URL</label>
+              <p className="mt-0.5 text-xs text-gray-500">
+                The base URL of your Ollama server. Defaults to{" "}
+                <code className="text-gray-400">http://localhost:11434</code> if left blank.{" "}
+                See{" "}
+                <a
+                  href={activeProvider.docsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent hover:underline"
+                >
+                  ollama.com
+                </a>
+              </p>
+              <input
+                type="url"
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+                placeholder={
+                  data?.provider === "ollama" && data.baseUrl
+                    ? data.baseUrl
+                    : "http://localhost:11434"
+                }
+                className="mt-2 w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm font-mono text-white placeholder:text-gray-600 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
+                autoComplete="off"
+              />
+            </div>
+          ) : (
+            /* All other providers: API key */
+            <div>
+              <label className="text-sm font-medium text-white">
+                {activeProvider.label} API Key
+              </label>
+              <p className="mt-0.5 text-xs text-gray-500">
+                Get your key from{" "}
+                <a
+                  href={activeProvider.docsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent hover:underline"
+                >
+                  {activeProvider.docsUrl.replace("https://", "")}
+                </a>
+              </p>
+              <input
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={
+                  data?.hasKey && data.provider === selectedProvider
+                    ? (data.maskedKey ?? activeProvider.placeholder)
+                    : activeProvider.placeholder
+                }
+                className="mt-2 w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm font-mono text-white placeholder:text-gray-600 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
+                autoComplete="off"
+              />
+            </div>
+          )}
+
+          {/* Fetch Models (Ollama + OpenAI) */}
+          {activeProvider.hasModels && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleFetchModels}
+                  disabled={fetchModelsMutation.isPending}
+                  className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 hover:border-gray-600 hover:text-white disabled:opacity-50 transition-colors"
+                >
+                  {fetchModelsMutation.isPending ? "Fetching\u2026" : "Fetch Models"}
+                </button>
+                {fetchedModels.length > 0 && (
+                  <span className="text-xs text-gray-500">{fetchedModels.length} model{fetchedModels.length !== 1 ? "s" : ""} found</span>
+                )}
+              </div>
+
+              {fetchModelsMutation.error && (
+                <p className="text-xs text-red-400">{fetchModelsMutation.error.message}</p>
+              )}
+
+              {fetchedModels.length > 0 && (
+                <div>
+                  <label className="text-xs font-medium text-gray-400">Select model</label>
+                  <select
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm text-white focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  >
+                    <option value="">Use default</option>
+                    {fetchedModels.map((m) => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Show currently saved model if no models fetched yet */}
+              {fetchedModels.length === 0 && data?.model && data.provider === selectedProvider && (
+                <p className="text-xs text-gray-500">
+                  Current model: <span className="text-gray-400">{data.model}</span>
+                </p>
+              )}
+            </div>
+          )}
 
           {update.error && (
             <p className="text-xs text-red-400">{update.error.message}</p>
@@ -198,10 +398,10 @@ export default function SettingsAIPage() {
           <div className="flex items-center gap-3">
             <button
               type="submit"
-              disabled={update.isPending || !apiKey.trim()}
+              disabled={update.isPending || !canSave}
               className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-black hover:bg-accent-9 disabled:opacity-50 transition-colors"
             >
-              {update.isPending ? "Saving..." : saved ? "Saved!" : "Save key"}
+              {update.isPending ? "Saving\u2026" : saved ? "Saved!" : "Save settings"}
             </button>
             {saved && (
               <span className="text-xs text-green-400">
@@ -244,7 +444,7 @@ export default function SettingsAIPage() {
               type="password"
               value={imageKey}
               onChange={(e) => setImageKey(e.target.value)}
-              placeholder={data?.hasImageKey ? data.maskedImageKey ?? "kie-..." : "kie-..."}
+              placeholder={data?.hasImageKey ? (data.maskedImageKey ?? "kie-...") : "kie-..."}
               className="mt-2 w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm font-mono text-white placeholder:text-gray-600 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
               autoComplete="off"
             />
@@ -258,7 +458,7 @@ export default function SettingsAIPage() {
               disabled={updateImage.isPending || !imageKey.trim()}
               className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-black hover:bg-accent-9 disabled:opacity-50 transition-colors"
             >
-              {updateImage.isPending ? "Saving..." : imageSaved ? "Saved!" : "Save image key"}
+              {updateImage.isPending ? "Saving\u2026" : imageSaved ? "Saved!" : "Save image key"}
             </button>
             {imageSaved && <span className="text-xs text-green-400">Image generation enabled.</span>}
           </div>
@@ -271,6 +471,8 @@ export default function SettingsAIPage() {
           <strong className="text-gray-400">Security:</strong> Your API keys are stored encrypted in your organization settings. They are never exposed in the browser or logs. They are only used server-side when you trigger AI features.
           {" "}
           <strong className="text-gray-400">Priority:</strong> Org-level keys override any server environment variables.
+          {" "}
+          <strong className="text-gray-400">Ollama:</strong> The Ollama server must be reachable from your RankFlo server. For local development, <code className="text-gray-400">http://localhost:11434</code> works out of the box.
         </p>
       </div>
     </div>

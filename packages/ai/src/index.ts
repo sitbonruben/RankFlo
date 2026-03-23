@@ -59,8 +59,20 @@ export function resolveAIConfig(): AIConfig | null {
     | "anthropic"
     | "google"
     | "kie"
+    | "ollama"
     | undefined;
   const explicitModel = process.env.AI_MODEL || undefined;
+  const explicitBaseUrl = process.env.AI_BASE_URL || undefined;
+
+  // Ollama — no API key required
+  if (explicitProvider === "ollama") {
+    return {
+      provider: "ollama",
+      apiKey: process.env.OLLAMA_API_KEY ?? "",
+      model: explicitModel,
+      baseUrl: explicitBaseUrl,
+    };
+  }
 
   // Check each provider key in priority order
   if (process.env.OPENAI_API_KEY) {
@@ -68,6 +80,7 @@ export function resolveAIConfig(): AIConfig | null {
       provider: explicitProvider ?? "openai",
       apiKey: process.env.OPENAI_API_KEY,
       model: explicitModel,
+      baseUrl: explicitBaseUrl,
     };
   }
 
@@ -76,6 +89,7 @@ export function resolveAIConfig(): AIConfig | null {
       provider: explicitProvider ?? "anthropic",
       apiKey: process.env.ANTHROPIC_API_KEY,
       model: explicitModel,
+      baseUrl: explicitBaseUrl,
     };
   }
 
@@ -84,6 +98,7 @@ export function resolveAIConfig(): AIConfig | null {
       provider: explicitProvider ?? "google",
       apiKey: process.env.GOOGLE_AI_API_KEY,
       model: explicitModel,
+      baseUrl: explicitBaseUrl,
     };
   }
 
@@ -92,6 +107,7 @@ export function resolveAIConfig(): AIConfig | null {
       provider: explicitProvider ?? "kie",
       apiKey: process.env.KIE_API_KEY,
       model: explicitModel,
+      baseUrl: explicitBaseUrl,
     };
   }
 

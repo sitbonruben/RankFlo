@@ -228,15 +228,19 @@ export const organizationRouter = router({
       const maskedImageKey = settings.kieImageApiKey
         ? maskKey(decrypt(settings.kieImageApiKey as string))
         : null;
-      return { provider, hasKey, maskedKey, hasImageKey, maskedImageKey };
+      const baseUrl = (settings.aiBaseUrl as string) ?? null;
+      const model = (settings.aiModel as string) ?? null;
+      return { provider, hasKey, maskedKey, hasImageKey, maskedImageKey, baseUrl, model };
     }),
 
   updateAISettings: orgProcedure
     .use(requireRole("ADMIN"))
     .input(
       z.object({
-        provider: z.enum(["anthropic", "openai", "google", "kie"]),
-        apiKey: z.string().min(1),
+        provider: z.enum(["anthropic", "openai", "google", "kie", "ollama"]),
+        apiKey: z.string().optional(),
+        baseUrl: z.string().url().optional(),
+        model: z.string().optional(),
         kieImageApiKey: z.string().optional(),
       }),
     )
@@ -249,8 +253,16 @@ export const organizationRouter = router({
       const update: Record<string, unknown> = {
         ...current,
         aiProvider: input.provider,
-        aiApiKey: encrypt(input.apiKey),
       };
+      if (input.apiKey) {
+        update.aiApiKey = encrypt(input.apiKey);
+      }
+      if (input.baseUrl !== undefined) {
+        update.aiBaseUrl = input.baseUrl;
+      }
+      if (input.model !== undefined) {
+        update.aiModel = input.model;
+      }
       if (input.kieImageApiKey) {
         update.kieImageApiKey = encrypt(input.kieImageApiKey);
       }
@@ -259,6 +271,32 @@ export const organizationRouter = router({
         data: { settings: update },
       });
       return { success: true };
+    }),
+
+  fetchModels: orgProcedure
+    .use(requireRole("ADMIN"))
+    .input(z.object({
+      provider: z.enum(["openai", "ollama"]),
+      baseUrl: z.string().url().optional(),
+      apiKey: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const base = input.baseUrl ?? (input.provider === "ollama" ? "http://localhost:11434" : "https://api.openai.com");
+
+      if (input.provider === "ollama") {
+        const res = await fetch(`${base}/api/tags`, { signal: AbortSignal.timeout(5000) });
+        if (!res.ok) throw new TRPCError({ code: "BAD_REQUEST", message: `Cannot reach Ollama at ${base}` });
+        const data = await res.json() as { models: { name: string }[] };
+        return { models: data.models.map((m: { name: string }) => m.name) };
+      } else {
+        const res = await fetch(`${base}/v1/models`, {
+          headers: { Authorization: `Bearer ${input.apiKey ?? ""}` },
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!res.ok) throw new TRPCError({ code: "BAD_REQUEST", message: "Cannot fetch models" });
+        const data = await res.json() as { data: { id: string }[] };
+        return { models: data.data.map((m: { id: string }) => m.id) };
+      }
     }),
 
   updateKieImageKey: orgProcedure
@@ -284,7 +322,7 @@ export const organizationRouter = router({
         where: { id: ctx.organizationId },
         select: { settings: true },
       });
-      const { aiProvider: _p, aiApiKey: _k, kieImageApiKey: _img, ...rest } =
+      const { aiProvider: _p, aiApiKey: _k, kieImageApiKey: _img, aiBaseUrl: _u, aiModel: _m, ...rest } =
         (org?.settings as Record<string, unknown>) ?? {};
       await ctx.db.organization.update({
         where: { id: ctx.organizationId },

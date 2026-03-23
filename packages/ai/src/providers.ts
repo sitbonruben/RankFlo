@@ -5,6 +5,7 @@ const DEFAULT_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-4-20250514",
   google: "gemini-2.0-flash",
   kie: "gemini-2.5-flash",
+  ollama: "llama3.2",
 };
 
 const DEFAULT_MAX_TOKENS = 4096;
@@ -61,6 +62,8 @@ export class AIProviderClient {
           return this.googleComplete(request);
         case "kie":
           return this.kieComplete(request);
+        case "ollama":
+          return this.ollamaComplete(request);
         default:
           throw new AIProviderError(
             `Unsupported provider: ${this.config.provider}`,
@@ -83,6 +86,9 @@ export class AIProviderClient {
         break;
       case "kie":
         yield* this.kieStream(request);
+        break;
+      case "ollama":
+        yield* this.ollamaStream(request);
         break;
       default:
         throw new AIProviderError(
@@ -432,6 +438,95 @@ export class AIProviderClient {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${this.config.apiKey}`,
+      },
+      body: JSON.stringify(body),
+      timeoutMs: request.longForm ? LONG_FORM_TIMEOUT_MS : BASE_TIMEOUT_MS,
+    });
+
+    yield* this.parseSSEStream(response, (event: string) => {
+      if (event === "[DONE]") return null;
+      try {
+        const parsed = JSON.parse(event) as {
+          choices: { delta: { content?: string } }[];
+        };
+        return parsed.choices?.[0]?.delta?.content ?? null;
+      } catch {
+        return null;
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ollama (OpenAI-compatible local endpoint)
+  // ---------------------------------------------------------------------------
+
+  private async ollamaComplete(request: LLMRequest): Promise<LLMResponse> {
+    const base = this.config.baseUrl ?? "http://localhost:11434";
+    const messages = [
+      { role: "system" as const, content: request.system },
+      ...request.messages,
+    ];
+
+    const body = {
+      model: this.model,
+      messages,
+      max_tokens: request.maxTokens ?? this.config.maxTokens ?? DEFAULT_MAX_TOKENS,
+      temperature: request.temperature ?? this.config.temperature ?? DEFAULT_TEMPERATURE,
+    };
+
+    const response = await this.fetch(`${base}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.config.apiKey || "ollama"}`,
+      },
+      body: JSON.stringify(body),
+      timeoutMs: request.longForm ? LONG_FORM_TIMEOUT_MS : BASE_TIMEOUT_MS,
+    });
+
+    const data = (await response.json()) as {
+      choices: { message: { content: string } }[];
+      usage?: { prompt_tokens: number; completion_tokens: number };
+    };
+
+    if (!data.choices?.[0]?.message?.content) {
+      throw new AIProviderError(
+        "Empty response from Ollama",
+        "ollama",
+        response.status,
+        true,
+      );
+    }
+
+    return {
+      content: data.choices[0].message.content,
+      usage: {
+        inputTokens: data.usage?.prompt_tokens ?? 0,
+        outputTokens: data.usage?.completion_tokens ?? 0,
+      },
+    };
+  }
+
+  private async *ollamaStream(request: LLMRequest): AsyncGenerator<string> {
+    const base = this.config.baseUrl ?? "http://localhost:11434";
+    const messages = [
+      { role: "system" as const, content: request.system },
+      ...request.messages,
+    ];
+
+    const body = {
+      model: this.model,
+      messages,
+      max_tokens: request.maxTokens ?? this.config.maxTokens ?? DEFAULT_MAX_TOKENS,
+      temperature: request.temperature ?? this.config.temperature ?? DEFAULT_TEMPERATURE,
+      stream: true,
+    };
+
+    const response = await this.fetch(`${base}/v1/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.config.apiKey || "ollama"}`,
       },
       body: JSON.stringify(body),
       timeoutMs: request.longForm ? LONG_FORM_TIMEOUT_MS : BASE_TIMEOUT_MS,

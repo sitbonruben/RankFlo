@@ -1,9 +1,10 @@
-export type AIProvider = "openai" | "anthropic" | "google" | "kie";
+export type AIProvider = "openai" | "anthropic" | "google" | "kie" | "ollama";
 
 export interface AIConfig {
   provider: AIProvider;
   apiKey: string;
   model?: string;
+  baseUrl?: string;
   maxTokens?: number;
   temperature?: number;
 }
