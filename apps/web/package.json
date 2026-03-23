@@ -7,7 +7,7 @@
     "dev": "next dev --port ${PORT:-3000}",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
@@ -42,8 +42,10 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@rankflo/eslint-config": "workspace:*",
     "@rankflo/tailwind-config": "workspace:*",
     "@rankflo/tsconfig": "workspace:*",
+    "eslint": "^9.0.0",
     "@tailwindcss/postcss": "^4.2.1",
     "@types/dompurify": "^3.2.0",
     "@types/node": "^22.10.0",

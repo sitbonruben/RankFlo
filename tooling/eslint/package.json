@@ -9,11 +9,13 @@
     "./library": "./library.js"
   },
   "dependencies": {
+    "@next/eslint-plugin-next": "^15.1.0",
     "@typescript-eslint/eslint-plugin": "^8.18.0",
     "@typescript-eslint/parser": "^8.18.0",
     "eslint-config-next": "^15.1.0",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-import": "^2.31.0"
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-react-hooks": "^5.0.0"
   },
   "peerDependencies": {
     "eslint": "^9.0.0",
