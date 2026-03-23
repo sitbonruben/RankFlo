@@ -88,14 +88,8 @@ export default function SettingsAIPage() {
     },
   });
 
-  const fetchModelsMutation = trpc.organization.fetchModels.useMutation({
-    onSuccess: (result) => {
-      setFetchedModels(result.models);
-      if (result.models.length > 0 && !selectedModel) {
-        setSelectedModel(result.models[0] ?? "");
-      }
-    },
-  });
+  const [fetchLoading, setFetchLoading] = useState(false);
+  const [fetchError, setFetchError] = useState("");
 
   const activeProvider = PROVIDERS.find((p) => p.id === selectedProvider)!;
   const isOllama = selectedProvider === "ollama";
@@ -126,17 +120,33 @@ export default function SettingsAIPage() {
     updateImage.mutate({ apiKey: imageKey.trim() });
   };
 
-  const handleFetchModels = () => {
-    if (isOllama) {
-      fetchModelsMutation.mutate({
-        provider: "ollama",
-        baseUrl: baseUrl.trim() || undefined,
-      });
-    } else if (selectedProvider === "openai") {
-      fetchModelsMutation.mutate({
-        provider: "openai",
-        apiKey: apiKey.trim() || undefined,
-      });
+  const handleFetchModels = async () => {
+    setFetchError("");
+    setFetchLoading(true);
+    try {
+      if (isOllama) {
+        // Fetch directly from the browser — Ollama is local on the user's machine
+        const url = (baseUrl.trim() || "http://localhost:11434").replace(/\/$/, "");
+        const res = await fetch(`${url}/api/tags`);
+        if (!res.ok) throw new Error(`Ollama returned ${res.status}. Is it running?`);
+        const data = await res.json() as { models: { name: string }[] };
+        const models = data.models.map((m) => m.name);
+        setFetchedModels(models);
+        if (models.length > 0 && !selectedModel) setSelectedModel(models[0] ?? "");
+      } else if (selectedProvider === "openai") {
+        const res = await fetch("https://api.openai.com/v1/models", {
+          headers: { Authorization: `Bearer ${apiKey.trim()}` },
+        });
+        if (!res.ok) throw new Error("Invalid API key or network error");
+        const data = await res.json() as { data: { id: string }[] };
+        const models = data.data.map((m) => m.id).sort();
+        setFetchedModels(models);
+        if (models.length > 0 && !selectedModel) setSelectedModel(models[0] ?? "");
+      }
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : "Failed to fetch models");
+    } finally {
+      setFetchLoading(false);
     }
   };
 
@@ -351,19 +361,19 @@ export default function SettingsAIPage() {
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleFetchModels}
-                  disabled={fetchModelsMutation.isPending}
+                  onClick={() => void handleFetchModels()}
+                  disabled={fetchLoading}
                   className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 hover:border-gray-600 hover:text-white disabled:opacity-50 transition-colors"
                 >
-                  {fetchModelsMutation.isPending ? "Fetching\u2026" : "Fetch Models"}
+                  {fetchLoading ? "Fetching\u2026" : "Fetch Models"}
                 </button>
                 {fetchedModels.length > 0 && (
                   <span className="text-xs text-gray-500">{fetchedModels.length} model{fetchedModels.length !== 1 ? "s" : ""} found</span>
                 )}
               </div>
 
-              {fetchModelsMutation.error && (
-                <p className="text-xs text-red-400">{fetchModelsMutation.error.message}</p>
+              {fetchError && (
+                <p className="text-xs text-red-400">{fetchError}</p>
               )}
 
               {fetchedModels.length > 0 && (
@@ -472,7 +482,7 @@ export default function SettingsAIPage() {
           {" "}
           <strong className="text-gray-400">Priority:</strong> Org-level keys override any server environment variables.
           {" "}
-          <strong className="text-gray-400">Ollama:</strong> The Ollama server must be reachable from your RankFlo server. For local development, <code className="text-gray-400">http://localhost:11434</code> works out of the box.
+          <strong className="text-gray-400">Ollama:</strong> Model fetching happens directly from your browser, so <code className="text-gray-400">http://localhost:11434</code> works for local Ollama. AI generation runs server-side, so the saved URL must also be reachable from the RankFlo server.
         </p>
       </div>
     </div>
