@@ -224,6 +224,10 @@ export const projectRouter = router({
         data: { projectId: null },
       });
 
+      // Delete child records that don't cascade automatically
+      await ctx.db.deployment.deleteMany({ where: { projectId: input.id } });
+      await ctx.db.subscriber.deleteMany({ where: { projectId: input.id } });
+
       await ctx.db.project.delete({ where: { id: input.id } });
 
       return { success: true };
@@ -393,5 +397,125 @@ export const projectRouter = router({
         deploymentCount,
         recentDeployments,
       };
+    }),
+
+  // ─── EXPORT AI CONTEXT BRIEF ─────────────────────────────
+  exportAIContext: orgProcedure
+    .input(z.object({ id: z.string().min(1) }))
+    .query(async ({ ctx, input }) => {
+      const project = await ctx.db.project.findFirst({
+        where: { id: input.id, organizationId: ctx.organizationId },
+        select: {
+          name: true,
+          url: true,
+          platform: true,
+          description: true,
+          brandStyle: true,
+        },
+      });
+
+      if (!project) throw new TRPCError({ code: "NOT_FOUND", message: "Project not found" });
+
+      const posts = await ctx.db.post.findMany({
+        where: { projectId: input.id, deletedAt: null },
+        orderBy: { publishedAt: "desc" },
+        select: {
+          title: true,
+          excerpt: true,
+          status: true,
+          slug: true,
+          publishedAt: true,
+          readingTime: true,
+          tags: { select: { tag: { select: { name: true } } } },
+          seoMeta: { select: { metaTitle: true, metaDescription: true, keywords: true } },
+        },
+      });
+
+      const now = new Date().toISOString().split("T")[0];
+      const published = posts.filter((p) => p.status === "PUBLISHED");
+      const drafts = posts.filter((p) => p.status === "DRAFT");
+
+      // Collect all covered keywords/topics for gap analysis
+      const allKeywords = new Set<string>();
+      const allTags = new Set<string>();
+      posts.forEach((p) => {
+        p.seoMeta?.keywords?.forEach((k) => allKeywords.add(k.toLowerCase()));
+        p.tags?.forEach((t) => allTags.add(t.tag.name.toLowerCase()));
+      });
+
+      const brandStyle = project.brandStyle as Record<string, unknown> | null;
+      const tone = Array.isArray(brandStyle?.tone) ? (brandStyle.tone as string[]).join(", ") : null;
+
+      const lines: string[] = [
+        `# ${project.name} — AI Content Brief`,
+        ``,
+        `> Generated: ${now}  `,
+        `> Use this file to give any AI full context before generating new blog posts.`,
+        ``,
+        `---`,
+        ``,
+        `## Project Overview`,
+        ``,
+        `- **Name:** ${project.name}`,
+        `- **URL:** ${project.url ?? "not set"}`,
+        `- **Platform:** ${project.platform}`,
+        ...(project.description ? [`- **Description:** ${project.description}`] : []),
+        ...(tone ? [`- **Brand tone:** ${tone}`] : []),
+        ``,
+        `---`,
+        ``,
+        `## Published Posts (${published.length})`,
+        ``,
+        `These topics are already covered — do NOT duplicate them:`,
+        ``,
+      ];
+
+      published.forEach((p, i) => {
+        lines.push(`### ${i + 1}. ${p.title}`);
+        if (p.excerpt) lines.push(`> ${p.excerpt}`);
+        lines.push(`- **Slug:** \`/${p.slug}\``);
+        if (p.publishedAt) lines.push(`- **Published:** ${p.publishedAt.toISOString().split("T")[0]}`);
+        if (p.readingTime) lines.push(`- **Reading time:** ${p.readingTime} min`);
+        if (p.tags.length > 0) lines.push(`- **Tags:** ${p.tags.map((t) => t.tag.name).join(", ")}`);
+        if (p.seoMeta?.keywords?.length) lines.push(`- **Keywords:** ${p.seoMeta.keywords.join(", ")}`);
+        if (p.seoMeta?.metaDescription) lines.push(`- **Meta description:** ${p.seoMeta.metaDescription}`);
+        lines.push(``);
+      });
+
+      if (drafts.length > 0) {
+        lines.push(`---`, ``, `## Draft Posts (${drafts.length})`, ``, `In progress — avoid duplicating these topics too:`, ``);
+        drafts.forEach((p, i) => {
+          lines.push(`### ${i + 1}. ${p.title}`);
+          if (p.excerpt) lines.push(`> ${p.excerpt}`);
+          if (p.tags.length > 0) lines.push(`- **Tags:** ${p.tags.map((t) => t.tag.name).join(", ")}`);
+          lines.push(``);
+        });
+      }
+
+      lines.push(
+        `---`,
+        ``,
+        `## SEO & Topics Summary`,
+        ``,
+        `**Covered keywords:** ${allKeywords.size > 0 ? [...allKeywords].join(", ") : "none yet"}`,
+        ``,
+        `**Covered tags/categories:** ${allTags.size > 0 ? [...allTags].join(", ") : "none yet"}`,
+        ``,
+        `---`,
+        ``,
+        `## Instructions for AI`,
+        ``,
+        `When generating new content for **${project.name}**:`,
+        ``,
+        `1. Do NOT write about any topic already listed above.`,
+        `2. Target keywords NOT in the covered list above to maximize SEO reach.`,
+        `3. Match the brand tone: **${tone ?? "professional, informative"}**.`,
+        `4. Each post should include: a clear H1 title, H2 subheadings, a meta description (150–160 chars), and 3–5 target keywords.`,
+        `5. Suggest an outline before writing: intro, 3–5 main sections, and a conclusion with CTA.`,
+        `6. Aim for 1200–2000 words for pillar posts, 600–900 for supporting posts.`,
+        ``,
+      );
+
+      return { markdown: lines.join("\n"), filename: `${project.name.toLowerCase().replace(/\s+/g, "-")}-ai-brief.md` };
     }),
 });

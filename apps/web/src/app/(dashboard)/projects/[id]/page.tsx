@@ -256,8 +256,26 @@ export default function ProjectDetailPage() {
   const { data: project, isLoading, refetch } = trpc.project.getById.useQuery({ id });
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [exportEnabled, setExportEnabled] = useState(false);
+  const { isFetching: exportFetching } = trpc.project.exportAIContext.useQuery(
+    { id },
+    {
+      enabled: exportEnabled,
+      onSuccess: (data) => {
+        setExportEnabled(false);
+        const blob = new Blob([data.markdown], { type: "text/markdown" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = data.filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+    },
+  );
   const deleteProject = trpc.project.delete.useMutation({
     onSuccess: () => router.push("/projects"),
+    onError: (err) => alert(`Delete failed: ${err.message}`),
   });
 
   const updateProject = trpc.project.update.useMutation({
@@ -804,10 +822,21 @@ export default function ProjectDetailPage() {
         <div className="flex flex-col gap-6 max-w-2xl">
           {/* AI Context */}
           <div className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-950">
-            <h3 className="mb-1 text-sm font-semibold text-gray-900 dark:text-white">AI Context</h3>
-            <p className="mb-4 text-xs text-gray-500">
-              Help the AI understand your project. This context is used when generating posts, suggesting topics, and answering questions in the editor.
-            </p>
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h3 className="mb-1 text-sm font-semibold text-gray-900 dark:text-white">AI Context</h3>
+                <p className="text-xs text-gray-500">
+                  Help the AI understand your project. This context is used when generating posts, suggesting topics, and answering questions in the editor.
+                </p>
+              </div>
+              <button
+                onClick={() => setExportEnabled(true)}
+                disabled={exportFetching}
+                className="shrink-0 inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-200 px-3 text-xs font-medium text-gray-600 transition-colors hover:border-green-400 hover:text-green-600 disabled:opacity-50 dark:border-gray-700 dark:text-gray-400 dark:hover:border-accent dark:hover:text-accent"
+              >
+                {exportFetching ? "Generating…" : "↓ Export AI Brief"}
+              </button>
+            </div>
             <div className="flex flex-col gap-4">
               <div>
                 <label className="mb-1.5 block text-xs font-medium text-gray-700 dark:text-gray-300">
