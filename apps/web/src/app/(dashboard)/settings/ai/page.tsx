@@ -127,7 +127,9 @@ export default function SettingsAIPage() {
       if (isOllama) {
         // Fetch directly from the browser — Ollama is local on the user's machine
         const url = (baseUrl.trim() || "http://localhost:11434").replace(/\/$/, "");
-        const res = await fetch(`${url}/api/tags`);
+        const res = await fetch(`${url}/api/tags`, {
+          headers: { "ngrok-skip-browser-warning": "true" },
+        });
         if (!res.ok) throw new Error(`Ollama returned ${res.status}. Is it running?`);
         const data = await res.json() as { models: { name: string }[] };
         const models = data.models.map((m) => m.name);
