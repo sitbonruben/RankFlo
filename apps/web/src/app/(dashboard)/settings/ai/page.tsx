@@ -144,7 +144,15 @@ export default function SettingsAIPage() {
         if (models.length > 0 && !selectedModel) setSelectedModel(models[0] ?? "");
       }
     } catch (err) {
-      setFetchError(err instanceof Error ? err.message : "Failed to fetch models");
+      const msg = err instanceof Error ? err.message : "Failed to fetch models";
+      if (msg === "Failed to fetch" && isOllama) {
+        setFetchError(
+          "Could not reach Ollama. Make sure it's running and has CORS enabled for this domain. " +
+          "In Terminal: launchctl setenv OLLAMA_ORIGINS \"https://app.rankflo.io\" — then restart Ollama."
+        );
+      } else {
+        setFetchError(msg);
+      }
     } finally {
       setFetchLoading(false);
     }
@@ -355,20 +363,47 @@ export default function SettingsAIPage() {
             </div>
           )}
 
-          {/* Fetch Models (Ollama + OpenAI) */}
+          {/* Model selection (Ollama + OpenAI) */}
           {activeProvider.hasModels && (
-            <div className="space-y-2">
+            <div className="space-y-3">
+              {/* Manual model name entry (always works) */}
+              {isOllama && (
+                <div>
+                  <label className="text-xs font-medium text-gray-400">Model name</label>
+                  <input
+                    type="text"
+                    value={selectedModel}
+                    onChange={(e) => setSelectedModel(e.target.value)}
+                    placeholder={data?.model && data.provider === "ollama" ? data.model : "e.g. llama3.2, mistral, gemma3"}
+                    className="mt-1 w-full rounded-lg border border-gray-700 bg-black px-3 py-2 text-sm font-mono text-white placeholder:text-gray-600 focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  />
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {["llama3.2", "llama3.1", "mistral", "gemma3", "phi4", "qwen2.5", "deepseek-r1"].map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setSelectedModel(m)}
+                        className={`rounded px-2 py-0.5 text-xs transition-colors ${selectedModel === m ? "bg-accent/20 text-accent border border-accent/40" : "border border-gray-700 text-gray-500 hover:text-gray-300"}`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Auto-fetch (works when Ollama CORS is configured, or for OpenAI) */}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => void handleFetchModels()}
                   disabled={fetchLoading}
-                  className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 hover:border-gray-600 hover:text-white disabled:opacity-50 transition-colors"
+                  className="rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-500 hover:border-gray-600 hover:text-gray-300 disabled:opacity-50 transition-colors"
                 >
-                  {fetchLoading ? "Fetching\u2026" : "Fetch Models"}
+                  {fetchLoading ? "Fetching…" : isOllama ? "Auto-detect models" : "Fetch Models"}
                 </button>
                 {fetchedModels.length > 0 && (
-                  <span className="text-xs text-gray-500">{fetchedModels.length} model{fetchedModels.length !== 1 ? "s" : ""} found</span>
+                  <span className="text-xs text-gray-500">{fetchedModels.length} models found</span>
                 )}
               </div>
 
@@ -376,7 +411,7 @@ export default function SettingsAIPage() {
                 <p className="text-xs text-red-400">{fetchError}</p>
               )}
 
-              {fetchedModels.length > 0 && (
+              {fetchedModels.length > 0 && !isOllama && (
                 <div>
                   <label className="text-xs font-medium text-gray-400">Select model</label>
                   <select
@@ -392,11 +427,19 @@ export default function SettingsAIPage() {
                 </div>
               )}
 
-              {/* Show currently saved model if no models fetched yet */}
-              {fetchedModels.length === 0 && data?.model && data.provider === selectedProvider && (
-                <p className="text-xs text-gray-500">
-                  Current model: <span className="text-gray-400">{data.model}</span>
-                </p>
+              {fetchedModels.length > 0 && isOllama && (
+                <div className="flex flex-wrap gap-1.5">
+                  {fetchedModels.map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setSelectedModel(m)}
+                      className={`rounded px-2 py-0.5 text-xs transition-colors ${selectedModel === m ? "bg-accent/20 text-accent border border-accent/40" : "border border-gray-700 text-gray-500 hover:text-gray-300"}`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           )}
