@@ -9,6 +9,7 @@ import {
 } from "@rankflo/core/validators";
 
 import { requireRole } from "../middleware/rbac";
+import { checkPlanLimit } from "../middleware/plan-limits";
 import { router, protectedProcedure, orgProcedure } from "../trpc";
 import { encrypt, decrypt, maskKey } from "../lib/encrypt";
 
@@ -103,6 +104,10 @@ export const organizationRouter = router({
     .use(requireRole("ADMIN"))
     .input(inviteMemberSchema)
     .mutation(async ({ ctx, input }) => {
+      // Enforce plan team member limit (skipped in OSS mode)
+      const plan = ctx.session.membership!.organization.plan;
+      await checkPlanLimit(ctx.db, ctx.organizationId, plan, "maxTeamMembers");
+
       const user = await ctx.db.user.findUnique({
         where: { email: input.email },
       });

@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  env: {
+    // Expose RANKFLO_MODE to the browser bundle so client components can gate
+    // billing/SaaS features.  Defaults to "oss" if unset, matching the server-
+    // side default in @rankflo/feature-flags.
+    NEXT_PUBLIC_RANKFLO_MODE: process.env.RANKFLO_MODE ?? "oss",
+  },
   typescript: {
     // pnpm monorepo: mobile app's @types/react@18 leaks into web's type-check.
     // Real type safety is enforced via `tsc --noEmit` in CI, not Next build.

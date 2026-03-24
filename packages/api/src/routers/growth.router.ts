@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { router, orgProcedure } from "../trpc";
+import { decrypt } from "../lib/encrypt";
 import {
   resolveAIConfig,
   generateContent,
@@ -17,13 +18,32 @@ import { CREDIT_COSTS } from "@rankflo/core/constants";
 
 // ─── Helpers ────────────────────────────────────────────────
 
-function requireAIConfig(): AIConfig {
+async function requireAIConfig(ctx: { db: { organization: { findUnique: (args: unknown) => Promise<{ settings: unknown } | null> } }; organizationId: string }): Promise<AIConfig> {
+  const org = await ctx.db.organization.findUnique({
+    where: { id: ctx.organizationId },
+    select: { settings: true },
+  });
+  const settings = (org?.settings as Record<string, unknown>) ?? {};
+  if (settings.aiProvider === "ollama") {
+    return {
+      provider: "ollama",
+      apiKey: "",
+      baseUrl: (settings.aiBaseUrl as string | undefined) ?? "http://localhost:11434",
+      model: (settings.aiModel as string | undefined) ?? "llama3.2",
+    };
+  }
+  if (settings.aiApiKey && settings.aiProvider) {
+    return {
+      provider: settings.aiProvider as "openai" | "anthropic" | "google" | "kie",
+      apiKey: decrypt(settings.aiApiKey as string),
+      model: settings.aiModel as string | undefined,
+    };
+  }
   const config = resolveAIConfig();
   if (!config) {
     throw new TRPCError({
       code: "PRECONDITION_FAILED",
-      message:
-        "No AI provider configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY in your environment.",
+      message: "No AI provider configured. Add an API key in Settings → AI.",
     });
   }
   return config;
@@ -78,7 +98,7 @@ export const growthRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const config = requireAIConfig();
+      const config = await requireAIConfig(ctx);
 
       await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.scan, "scan");
 
@@ -176,7 +196,7 @@ export const growthRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const config = requireAIConfig();
+      const config = await requireAIConfig(ctx);
 
       await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.research, "research");
 
@@ -302,7 +322,7 @@ export const growthRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const config = requireAIConfig();
+      const config = await requireAIConfig(ctx);
 
       await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.strategy, "strategy");
 
@@ -354,7 +374,7 @@ export const growthRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const config = requireAIConfig();
+      const config = await requireAIConfig(ctx);
 
       await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.quickGenerate, "quickGenerate");
 

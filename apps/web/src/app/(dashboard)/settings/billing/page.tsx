@@ -72,9 +72,34 @@ function CreditRing({
   );
 }
 
+// ─── OSS notice ───────────────────────────────────────────────────────────────
+
+function OSSBillingNotice() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Billing</h2>
+        <p className="text-sm text-gray-500">Subscription and payment settings.</p>
+      </div>
+      <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
+        <p className="text-sm font-medium text-gray-900 dark:text-white">
+          Billing is not available in self-hosted mode.
+        </p>
+        <p className="mt-1 text-sm text-gray-500">
+          All features are included — no subscription or payment required.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
+  // In OSS (self-hosted) mode, billing is not applicable.
+  if (process.env.NEXT_PUBLIC_RANKFLO_MODE === "oss") {
+    return <OSSBillingNotice />;
+  }
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loadingPack, setLoadingPack] = useState<string | null>(null);

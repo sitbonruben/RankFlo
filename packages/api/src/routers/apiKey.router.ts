@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 import { router, protectedProcedure, orgProcedure } from "../trpc";
+import { checkPlanLimit } from "../middleware/plan-limits";
 
 function generateApiKey(): { key: string; keyHash: string; keyPrefix: string } {
   const raw = randomBytes(32).toString("hex"); // 64 hex chars
@@ -19,6 +20,10 @@ export const apiKeyRouter = router({
   create: orgProcedure
     .input(z.object({ name: z.string().min(1).max(100) }))
     .mutation(async ({ ctx, input }) => {
+      // Enforce plan API key limit (skipped in OSS mode)
+      const plan = ctx.session.membership!.organization.plan;
+      await checkPlanLimit(ctx.db, ctx.organizationId, plan, "maxApiKeys");
+
       const { key, keyHash, keyPrefix } = generateApiKey();
 
       const apiKey = await ctx.db.apiKey.create({

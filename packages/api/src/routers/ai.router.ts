@@ -34,10 +34,19 @@ async function requireAIConfig(ctx: { db: { organization: { findUnique: (args: u
     select: { settings: true },
   });
   const settings = (org?.settings as Record<string, unknown>) ?? {};
+  if (settings.aiProvider === "ollama") {
+    return {
+      provider: "ollama",
+      apiKey: "",
+      baseUrl: (settings.aiBaseUrl as string | undefined) ?? "http://localhost:11434",
+      model: (settings.aiModel as string | undefined) ?? "llama3.2",
+    };
+  }
   if (settings.aiApiKey && settings.aiProvider) {
     return {
       provider: settings.aiProvider as "openai" | "anthropic" | "google" | "kie",
       apiKey: decrypt(settings.aiApiKey as string),
+      model: settings.aiModel as string | undefined,
     };
   }
 

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createWebhookSchema } from "@rankflo/core/validators";
 
 import { requireRole } from "../middleware/rbac";
+import { checkPlanLimit } from "../middleware/plan-limits";
 import { router, orgProcedure } from "../trpc";
 
 export const webhookRouter = router({
@@ -22,6 +23,10 @@ export const webhookRouter = router({
     .use(requireRole("ADMIN"))
     .input(createWebhookSchema)
     .mutation(async ({ ctx, input }) => {
+      // Enforce plan webhook limit (skipped in OSS mode)
+      const plan = ctx.session.membership!.organization.plan;
+      await checkPlanLimit(ctx.db, ctx.organizationId, plan, "maxWebhooks");
+
       const secret = randomBytes(32).toString("hex");
 
       return ctx.db.webhook.create({

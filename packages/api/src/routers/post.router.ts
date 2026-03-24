@@ -9,6 +9,7 @@ import {
 } from "@rankflo/core/validators";
 
 import { requirePermission, requireRole } from "../middleware/rbac";
+import { checkPlanLimit } from "../middleware/plan-limits";
 import { router, orgProcedure } from "../trpc";
 import type { PrismaClient } from "@rankflo/db";
 
@@ -234,6 +235,10 @@ export const postRouter = router({
     .input(createPostSchema)
     .mutation(async ({ ctx, input }) => {
       const { tagIds, ...data } = input;
+
+      // Enforce plan post limit (skipped in OSS mode)
+      const plan = ctx.session.membership!.organization.plan;
+      await checkPlanLimit(ctx.db, ctx.organizationId, plan, "maxPosts");
 
       const post = await ctx.db.post.create({
         data: {
