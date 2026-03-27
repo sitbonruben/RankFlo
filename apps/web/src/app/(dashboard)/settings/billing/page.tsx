@@ -96,10 +96,7 @@ function OSSBillingNotice() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
-  // In OSS (self-hosted) mode, billing is not applicable.
-  if (process.env.NEXT_PUBLIC_RANKFLO_MODE === "oss") {
-    return <OSSBillingNotice />;
-  }
+  const isOSS = process.env.NEXT_PUBLIC_RANKFLO_MODE === "oss";
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loadingPack, setLoadingPack] = useState<string | null>(null);
@@ -213,6 +210,8 @@ export default function BillingPage() {
       setLoadingCancel(false);
     }
   }
+
+  if (isOSS) return <OSSBillingNotice />;
 
   return (
     <div className="space-y-6">
