@@ -258,7 +258,7 @@ export default function AboutPage() {
 
           <div className="mt-10 text-center">
             <a
-              href="https://github.com/rankflo/rankflo"
+              href="https://github.com/sitbonruben/RankFlo"
               className="inline-flex h-12 items-center gap-2 rounded-xl border border-gray-700 px-8 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
             >
               <svg

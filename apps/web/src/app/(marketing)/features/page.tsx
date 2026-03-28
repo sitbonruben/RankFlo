@@ -834,7 +834,7 @@ export default function FeaturesPage() {
               Start for free
             </Link>
             <a
-              href="https://github.com/rankflo/rankflo"
+              href="https://github.com/sitbonruben/RankFlo"
               className="inline-flex h-12 items-center gap-2 rounded-xl border border-gray-300 px-8 text-sm font-medium text-gray-700 transition-colors hover:border-gray-400 hover:text-gray-950 dark:border-gray-700 dark:text-gray-300 dark:hover:border-gray-600 dark:hover:text-white"
             >
               <svg
