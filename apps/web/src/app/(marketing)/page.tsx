@@ -259,6 +259,45 @@ export default function HomePage() {
         <div className="mx-auto h-px w-48 bg-gradient-to-r from-transparent via-gray-300 to-transparent dark:via-gray-700" />
       </div>
 
+      {/* FAQ */}
+      <section className="border-t border-gray-200/50 py-24 dark:border-gray-800/50">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: [
+                { "@type": "Question", name: "Is RankFlo free?", acceptedAnswer: { "@type": "Answer", text: "Yes. RankFlo has a free plan with 50 posts, 10 AI credits/month, and full API access. You can also self-host the open-source version for free with no limits." } },
+                { "@type": "Question", name: "Can I self-host RankFlo?", acceptedAnswer: { "@type": "Answer", text: "Yes. RankFlo is open source (AGPL-3.0). Deploy it on any server with Docker and PostgreSQL. You own your data and there are no usage limits on self-hosted deployments." } },
+                { "@type": "Question", name: "How is RankFlo different from WordPress or Ghost?", acceptedAnswer: { "@type": "Answer", text: "RankFlo is a headless CMS — your content is delivered via a fast REST API rather than a server-rendered theme. It includes built-in AI content generation, SEO scoring, and analytics without plugins. Ghost and WordPress require plugins and themes for these features." } },
+                { "@type": "Question", name: "Does RankFlo have an API?", acceptedAnswer: { "@type": "Answer", text: "Yes. RankFlo provides a fully documented REST API for fetching posts, tags, search results, sitemaps, and RSS feeds. It also supports webhooks for post.published and post.updated events." } },
+                { "@type": "Question", name: "What AI models does RankFlo use?", acceptedAnswer: { "@type": "Answer", text: "RankFlo supports OpenAI (GPT-4), Anthropic (Claude), Google (Gemini), and local models via Ollama. You can bring your own API key or use the built-in credits system." } },
+                { "@type": "Question", name: "Do I need a credit card to start?", acceptedAnswer: { "@type": "Answer", text: "No. The free plan requires no credit card. The Pro plan includes a 7-day free trial — no card required until the trial ends." } },
+              ],
+            }),
+          }}
+        />
+        <div className="mx-auto max-w-content px-6">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white mb-10">Frequently asked questions</h2>
+          <div className="grid gap-6 sm:grid-cols-2">
+            {[
+              { q: "Is RankFlo free?", a: "Yes. The free plan includes 50 posts, 10 AI credits/month, and full API access. You can also self-host the open-source version for free with no limits." },
+              { q: "Can I self-host RankFlo?", a: "Yes — RankFlo is open source (AGPL-3.0). Deploy on any server with Docker and PostgreSQL. You own your data completely." },
+              { q: "How is it different from WordPress or Ghost?", a: "RankFlo is headless — content is served via a fast REST API, not themes. AI generation, SEO scoring, and analytics are built in, not plugins." },
+              { q: "Does RankFlo have an API?", a: "Yes. A full REST API covers posts, tags, search, sitemaps, and RSS. Webhooks fire on post.published and post.updated events." },
+              { q: "What AI models does it support?", a: "OpenAI (GPT-4), Anthropic (Claude), Google (Gemini), and local models via Ollama. Bring your own API key or use built-in credits." },
+              { q: "Do I need a credit card to start?", a: "No. The free plan needs no card. Pro includes a 7-day free trial — no card required until the trial ends." },
+            ].map(({ q, a }) => (
+              <div key={q} className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-950">
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{q}</h3>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">{a}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className="relative border-t border-gray-200/50 py-24 dark:border-gray-800/50">
         <div className="pointer-events-none absolute inset-0" aria-hidden="true">

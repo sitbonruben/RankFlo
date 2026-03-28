@@ -32,6 +32,12 @@ function MarketingNav() {
           >
             Blog
           </Link>
+          <Link
+            href="/tools"
+            className="text-sm text-gray-600 transition-colors hover:text-gray-950 dark:text-gray-400 dark:hover:text-white"
+          >
+            Tools
+          </Link>
           <a
             href="https://docs.rankflo.io"
             target="_blank"
@@ -144,6 +150,7 @@ function MarketingFooter() {
               <li><Link href="/pricing" className="hover:text-gray-700 dark:hover:text-gray-300">Pricing</Link></li>
               <li><Link href="/features" className="hover:text-gray-700 dark:hover:text-gray-300">Features</Link></li>
               <li><Link href="/blog" className="hover:text-gray-700 dark:hover:text-gray-300">Blog</Link></li>
+              <li><Link href="/tools" className="hover:text-gray-700 dark:hover:text-gray-300">Free Tools</Link></li>
               <li><a href="https://github.com/sitbonruben/RankFlo/releases" target="_blank" rel="noopener noreferrer" className="hover:text-gray-700 dark:hover:text-gray-300">Changelog</a></li>
             </ul>
           </div>
