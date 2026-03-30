@@ -7,19 +7,88 @@ import { trpc } from "@/trpc/client";
 function ScoreBar({ score }: { score: number }) {
   const clamped = Math.max(-100, Math.min(100, score));
   const positive = clamped > 0;
-  const pct = Math.abs(clamped);
+  const percentage = Math.abs(clamped);
   return (
     <div className="flex items-center gap-2">
       <div className="relative h-2 w-24 rounded-full bg-gray-100 dark:bg-gray-800">
         <div
           className={`absolute top-0 h-2 rounded-full ${positive ? "bg-green-500" : "bg-red-500"} ${positive ? "left-1/2" : "right-1/2"}`}
-          style={{ width: `${pct / 2}%` }}
+          style={{ width: `${percentage / 2}%` }}
         />
         <div className="absolute left-1/2 top-0 h-2 w-px bg-gray-300 dark:bg-gray-700" />
       </div>
       <span className={`text-xs font-semibold tabular-nums ${positive ? "text-green-600 dark:text-green-400" : score < 0 ? "text-red-600 dark:text-red-400" : "text-gray-500"}`}>
         {score > 0 ? "+" : ""}{score}
       </span>
+    </div>
+  );
+}
+
+/* ── Share of Voice chart ──────────────────────────────────────────────────── */
+function ShareOfVoiceChart({ data, isLoading }: {
+  data: { brandName: string; count: number; percentage: number; isOwn: boolean }[];
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <div className="space-y-3 px-5 py-4">
+        {[...Array(4)].map((_, i) => <div key={i} className="h-7 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />)}
+      </div>
+    );
+  }
+  if (!data.length) {
+    return <p className="px-5 py-6 text-center text-xs text-gray-400 dark:text-gray-600">Log mentions to see share of voice</p>;
+  }
+
+  const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#8b5cf6", "#ef4444", "#06b6d4", "#f97316"];
+
+  return (
+    <div className="px-5 py-4">
+      {/* Stacked bar */}
+      <div className="flex h-6 w-full overflow-hidden rounded-full">
+        {data.map((d, i) => (
+          <div
+            key={d.brandName}
+            title={`${d.brandName}: ${d.percentage}%`}
+            style={{
+              width: `${d.percentage}%`,
+              backgroundColor: d.isOwn ? "#22c55e" : COLORS[i % COLORS.length],
+              minWidth: d.percentage > 0 ? "2px" : 0,
+            }}
+            className="transition-all"
+          />
+        ))}
+      </div>
+
+      {/* Legend */}
+      <div className="mt-4 space-y-2">
+        {data.map((d, i) => (
+          <div key={d.brandName} className="flex items-center gap-3">
+            <span
+              className="h-3 w-3 shrink-0 rounded-sm"
+              style={{ backgroundColor: d.isOwn ? "#22c55e" : COLORS[i % COLORS.length] }}
+            />
+            <div className="flex flex-1 items-center justify-between gap-2 min-w-0">
+              <div className="flex items-center gap-2 min-w-0">
+                {d.isOwn && (
+                  <span className="shrink-0 rounded bg-green-50 px-1.5 py-0.5 text-[10px] font-semibold text-green-600 dark:bg-green-950/30 dark:text-green-400">You</span>
+                )}
+                <span className="truncate text-sm text-gray-700 dark:text-gray-300">{d.brandName}</span>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${d.percentage}%`, backgroundColor: d.isOwn ? "#22c55e" : COLORS[i % COLORS.length] }}
+                  />
+                </div>
+                <span className="text-xs font-semibold tabular-nums text-gray-900 dark:text-white w-10 text-right">{d.percentage}%</span>
+                <span className="text-xs text-gray-400 dark:text-gray-600 w-8 text-right">({d.count})</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -33,10 +102,12 @@ export default function CompetitorsPage() {
   const utils = trpc.useUtils();
 
   const { data: competitors, isLoading } = trpc.llm.competitors.useQuery();
+  const { data: shareOfVoice, isLoading: sovLoading } = trpc.llm.shareOfVoice.useQuery();
 
   const createMention = trpc.llm.mentionCreate.useMutation({
     onSuccess: () => {
       void utils.llm.competitors.invalidate();
+      void utils.llm.shareOfVoice.invalidate();
       setShowAddModal(false);
       setCompQuery("");
       setCompSnippet("");
@@ -46,6 +117,7 @@ export default function CompetitorsPage() {
 
   const ownBrand = competitors?.find((c) => c.isOwn);
   const others = competitors?.filter((c) => !c.isOwn) ?? [];
+  const ownSov = shareOfVoice?.find((s) => s.isOwn);
 
   return (
     <div className="flex flex-col gap-6">
@@ -73,6 +145,25 @@ export default function CompetitorsPage() {
         </button>
       </div>
 
+      {/* Share of Voice */}
+      {(sovLoading || (shareOfVoice && shareOfVoice.length > 0)) && (
+        <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-3.5 dark:border-gray-800">
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Share of Voice</h3>
+              <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-600">How often each brand is mentioned across all AI queries</p>
+            </div>
+            {ownSov && (
+              <div className="text-right">
+                <p className="text-2xl font-bold text-green-600 dark:text-green-400">{ownSov.percentage}%</p>
+                <p className="text-xs text-gray-400 dark:text-gray-600">your share</p>
+              </div>
+            )}
+          </div>
+          <ShareOfVoiceChart data={shareOfVoice ?? []} isLoading={sovLoading} />
+        </div>
+      )}
+
       {/* Comparison table */}
       {isLoading ? (
         <div className="space-y-3">
@@ -87,7 +178,7 @@ export default function CompetitorsPage() {
           </svg>
           <p className="mt-3 text-sm font-medium text-gray-700 dark:text-gray-300">No comparison data yet</p>
           <p className="mt-1 text-sm text-gray-400 dark:text-gray-600">
-            Log mentions for your brand and competitors. Specify the brand name when logging to compare.
+            Log mentions for your brand and competitors to compare share of voice.
           </p>
           <button
             onClick={() => setShowAddModal(true)}

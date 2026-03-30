@@ -42,15 +42,93 @@ function timeAgo(date: Date | string) {
   return `${months}mo ago`;
 }
 
+/* ── Visibility score ring ─────────────────────────────────────────────────── */
+function VisibilityRing({ score, isLoading }: { score: number; isLoading: boolean }) {
+  const R = 52, C = 2 * Math.PI * R;
+  const dashOffset = C - (score / 100) * C;
+
+  const color = score >= 60 ? "#22c55e" : score >= 30 ? "#f59e0b" : "#ef4444";
+  const label = score >= 60 ? "Strong" : score >= 30 ? "Building" : "Weak";
+
+  return (
+    <div className="flex flex-col items-center justify-center py-4">
+      {isLoading ? (
+        <div className="h-36 w-36 animate-pulse rounded-full bg-gray-100 dark:bg-gray-800" />
+      ) : (
+        <div className="relative">
+          <svg width="144" height="144" viewBox="0 0 144 144">
+            <circle cx="72" cy="72" r={R} fill="none" stroke="currentColor" strokeWidth={10} className="text-gray-100 dark:text-gray-800" />
+            <circle
+              cx="72" cy="72" r={R}
+              fill="none"
+              stroke={color}
+              strokeWidth={10}
+              strokeDasharray={C}
+              strokeDashoffset={dashOffset}
+              strokeLinecap="round"
+              transform="rotate(-90 72 72)"
+              style={{ transition: "stroke-dashoffset 0.6s ease" }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-3xl font-bold tabular-nums text-gray-900 dark:text-white" style={{ color }}>{score}</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">/ 100</span>
+          </div>
+        </div>
+      )}
+      <p className="mt-2 text-sm font-semibold text-gray-900 dark:text-white">AI Visibility Score</p>
+      {!isLoading && <p className="text-xs text-gray-400 dark:text-gray-600">{label} — based on mentions, sentiment & citations</p>}
+    </div>
+  );
+}
+
+/* ── Weekly trend bars ─────────────────────────────────────────────────────── */
+function WeeklyTrendBars({ data, isLoading }: { data: { week: string; count: number }[]; isLoading: boolean }) {
+  const max = data.length > 0 ? Math.max(...data.map((w) => w.count), 1) : 1;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-end gap-1 h-20 px-1">
+        {[...Array(8)].map((_, i) => (
+          <div key={i} className="flex-1 animate-pulse rounded-t bg-gray-100 dark:bg-gray-800" style={{ height: `${30 + Math.random() * 50}%` }} />
+        ))}
+      </div>
+    );
+  }
+
+  if (!data.length) {
+    return <p className="py-6 text-center text-xs text-gray-400 dark:text-gray-600">No data yet</p>;
+  }
+
+  return (
+    <div className="flex items-end gap-1 h-20 px-1">
+      {data.map((w, i) => {
+        const pct = max > 0 ? (w.count / max) * 100 : 0;
+        const isLast = i === data.length - 1;
+        return (
+          <div key={w.week} className="group relative flex flex-1 flex-col items-center justify-end">
+            <div
+              className={`w-full rounded-t transition-all ${isLast ? "bg-green-500" : "bg-green-200 dark:bg-green-900/50"} group-hover:bg-green-400`}
+              style={{ height: `${Math.max(pct, 4)}%` }}
+            />
+            {/* tooltip */}
+            <div className="pointer-events-none absolute bottom-full mb-1 hidden rounded bg-gray-900 px-2 py-1 text-[10px] text-white group-hover:block whitespace-nowrap">
+              {w.week}: {w.count}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function LlmsOverviewPage() {
   const { data: stats, isLoading: statsLoading } = trpc.llm.mentionStats.useQuery({ days: 30 });
   const { data: recentData } = trpc.llm.mentionList.useQuery({ page: 1, pageSize: 6 });
+  const { data: visibilityData, isLoading: visLoading } = trpc.llm.visibilityScore.useQuery();
+  const { data: weeklyData, isLoading: weeklyLoading } = trpc.llm.weeklyTrend.useQuery();
   const recent = recentData?.items ?? [];
-
-  const scoreColor = (score: number) =>
-    score > 20 ? "text-green-600 dark:text-green-400" :
-    score < -20 ? "text-red-600 dark:text-red-400" :
-    "text-gray-600 dark:text-gray-400";
+  const weeklyTrend = weeklyData ?? [];
 
   return (
     <div className="flex flex-col gap-6">
@@ -73,41 +151,81 @@ export default function LlmsOverviewPage() {
         </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {[
-          {
-            label: "Mentions (30d)",
-            value: stats?.total ?? 0,
-            sub: stats ? (stats.trend > 0 ? `+${stats.trend}% vs prev` : stats.trend < 0 ? `${stats.trend}% vs prev` : "same as prev") : null,
-            accent: (stats?.total ?? 0) > 0,
-          },
-          { label: "Positive", value: stats?.positive ?? 0, sub: null },
-          { label: "Negative", value: stats?.negative ?? 0, sub: null },
-          {
-            label: "Sentiment score",
-            value: stats ? `${stats.sentimentScore > 0 ? "+" : ""}${stats.sentimentScore}` : "—",
-            sub: "positive − negative",
-            accent: (stats?.sentimentScore ?? 0) > 0,
-          },
-        ].map((card) => (
-          <div
-            key={card.label}
-            className={`rounded-xl border p-5 ${card.accent ? "border-green-200 bg-green-50 dark:border-green-900/30 dark:bg-green-950/20" : "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950"}`}
-          >
-            <p className="text-sm text-gray-500 dark:text-gray-400">{card.label}</p>
-            {statsLoading ? (
-              <div className="mt-2 h-8 w-14 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
-            ) : (
-              <>
-                <p className={`mt-1 text-3xl font-bold tracking-tight ${card.accent ? "text-green-700 dark:text-green-400" : "text-gray-900 dark:text-white"}`}>
-                  {card.value}
-                </p>
-                {card.sub && <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-600">{card.sub}</p>}
-              </>
-            )}
+      {/* Top section: visibility score + weekly trend */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {/* Visibility score ring */}
+        <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+          <VisibilityRing score={visibilityData?.total ?? 0} isLoading={visLoading} />
+          {!visLoading && visibilityData && (
+            <div className="border-t border-gray-100 px-5 py-3 dark:border-gray-800">
+              <div className="space-y-1.5">
+                {Object.values(visibilityData.components).map((b) => (
+                  <div key={b.label} className="flex items-center justify-between">
+                    <span className="text-xs text-gray-500 dark:text-gray-400">{b.label}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="h-1 w-16 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                        <div className="h-full rounded-full bg-green-500" style={{ width: `${(b.score / b.max) * 100}%` }} />
+                      </div>
+                      <span className="text-xs font-semibold tabular-nums text-gray-900 dark:text-white w-8 text-right">{b.score}/{b.max}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Weekly trend */}
+        <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+          <div className="border-b border-gray-100 px-5 py-3.5 dark:border-gray-800">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">8-week trend</h3>
+            <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-600">AI mention volume per week</p>
           </div>
-        ))}
+          <div className="px-4 py-4">
+            <WeeklyTrendBars data={weeklyTrend} isLoading={weeklyLoading} />
+            <div className="mt-2 flex justify-between text-[10px] text-gray-400 dark:text-gray-600">
+              <span>{weeklyTrend[0]?.week ?? ""}</span>
+              <span>This week</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-rows-2 gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { label: "Mentions (30d)", value: stats?.total ?? 0, sub: stats ? (stats.trend > 0 ? `+${stats.trend}% vs prev` : stats.trend < 0 ? `${stats.trend}% vs prev` : "same as prev") : null, accent: (stats?.total ?? 0) > 0 },
+              { label: "Sentiment score", value: stats ? `${stats.sentimentScore > 0 ? "+" : ""}${stats.sentimentScore}` : "—", sub: "positive − negative", accent: (stats?.sentimentScore ?? 0) > 0 },
+            ].map((card) => (
+              <div key={card.label} className={`rounded-xl border p-4 ${card.accent ? "border-green-200 bg-green-50 dark:border-green-900/30 dark:bg-green-950/20" : "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950"}`}>
+                <p className={`text-xs font-medium ${card.accent ? "text-green-700 dark:text-green-400" : "text-gray-500 dark:text-gray-400"}`}>{card.label}</p>
+                {statsLoading ? (
+                  <div className="mt-1.5 h-7 w-12 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+                ) : (
+                  <>
+                    <p className={`mt-1 text-2xl font-bold tracking-tight ${card.accent ? "text-green-700 dark:text-green-400" : "text-gray-900 dark:text-white"}`}>{card.value}</p>
+                    {card.sub && <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-600">{card.sub}</p>}
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              { label: "Positive", value: stats?.positive ?? 0 },
+              { label: "Negative", value: stats?.negative ?? 0 },
+            ].map((card) => (
+              <div key={card.label} className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-950">
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{card.label}</p>
+                {statsLoading ? (
+                  <div className="mt-1.5 h-7 w-8 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+                ) : (
+                  <p className={`mt-1 text-2xl font-bold tracking-tight ${card.label === "Positive" ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}>{card.value}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
