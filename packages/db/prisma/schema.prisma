@@ -100,6 +100,8 @@ model Organization {
   utmLinks         UtmLink[]
   subscription     Subscription?
   creditLedger     CreditLedger[]
+  llmMentions      LlmMention[]
+  llmPrompts       LlmPrompt[]
 
   @@index([slug])
   @@index([customDomain])
@@ -703,6 +705,46 @@ model UtmLink {
   @@index([organizationId])
   @@index([shortCode])
   @@map("utm_links")
+}
+
+// ─── LLM VISIBILITY TRACKING ────────────────────────────────
+
+model LlmMention {
+  id             String   @id @default(cuid())
+  organizationId String
+  platform       String   // "chatgpt", "claude", "gemini", "perplexity", "copilot", "grok", "other"
+  query          String   // Prompt / question that was asked
+  snippet        String?  // Response excerpt showing the mention
+  url            String?  // URL cited by the AI, if any
+  brandName      String   @default("") // Your brand name or a competitor's
+  sentiment      String   @default("neutral") // "positive", "neutral", "negative"
+  rank           Int?     // Position in the AI response (1 = first mention)
+  notes          String?
+  mentionedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, mentionedAt(sort: Desc)])
+  @@index([organizationId, platform])
+  @@index([organizationId, brandName])
+  @@map("llm_mentions")
+}
+
+model LlmPrompt {
+  id             String    @id @default(cuid())
+  organizationId String
+  prompt         String
+  category       String?   // "brand", "product", "topic", "competitor"
+  notes          String?
+  lastTestedAt   DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("llm_prompts")
 }
 
 // ─── AUDIT LOG ──────────────────────────────────────────────

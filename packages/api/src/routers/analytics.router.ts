@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 
 import { router, orgProcedure } from "../trpc";
 
@@ -192,6 +193,76 @@ export const analyticsRouter = router({
         if (slug) result[slug] = (result[slug] ?? 0) + row._count.path;
       }
       return result;
+    }),
+
+  // Top site search queries
+  topSearchQueries: orgProcedure
+    .input(z.object({ days: z.number().default(30), limit: z.number().default(25) }))
+    .query(async ({ ctx, input }) => {
+      const from = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
+      const rows = await ctx.db.searchQuery.groupBy({
+        by: ["query"],
+        where: { organizationId: ctx.organizationId, timestamp: { gte: from } },
+        _count: { query: true },
+        _avg: { resultsCount: true, clickPosition: true },
+        orderBy: { _count: { query: "desc" } },
+        take: input.limit,
+      });
+      return rows.map((r) => ({
+        query: r.query,
+        searches: r._count.query,
+        avgResults: Math.round(r._avg.resultsCount ?? 0),
+        avgClickPosition: r._avg.clickPosition ? Number(r._avg.clickPosition.toFixed(1)) : null,
+      }));
+    }),
+
+  // Google PageSpeed Insights (called server-side, no API key needed for basic usage)
+  pageSpeed: orgProcedure
+    .input(
+      z.object({
+        url: z.string().url(),
+        strategy: z.enum(["mobile", "desktop"]).default("mobile"),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const apiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(input.url)}&strategy=${input.strategy}&category=performance`;
+      const res = await fetch(apiUrl, { signal: AbortSignal.timeout(30_000) });
+      if (!res.ok) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "PageSpeed API request failed" });
+      }
+      const data = (await res.json()) as Record<string, unknown>;
+      const lr = data.lighthouseResult as Record<string, unknown> | undefined;
+      const audits = (lr?.audits ?? {}) as Record<string, Record<string, unknown>>;
+      const score = Math.round(((lr?.categories as Record<string, Record<string, number>> | undefined)?.performance?.score ?? 0) * 100);
+
+      function metric(key: string) {
+        const a = audits[key];
+        if (!a) return null;
+        return { value: a.displayValue as string, score: a.score as number };
+      }
+
+      const opps = Object.entries(audits)
+        .filter(([, a]) => (a.details as Record<string, unknown> | undefined)?.type === "opportunity" && typeof a.score === "number" && (a.score as number) < 0.9)
+        .map(([, a]) => ({
+          title: a.title as string,
+          description: a.description as string,
+          savingsMs: ((a.details as Record<string, unknown> | undefined)?.overallSavingsMs as number | undefined) ?? 0,
+          score: a.score as number,
+        }))
+        .sort((a, b) => a.score - b.score)
+        .slice(0, 6);
+
+      return {
+        score,
+        strategy: input.strategy,
+        lcp: metric("largest-contentful-paint"),
+        tbt: metric("total-blocking-time"),
+        cls: metric("cumulative-layout-shift"),
+        fcp: metric("first-contentful-paint"),
+        ttfb: metric("server-response-time"),
+        si: metric("speed-index"),
+        opportunities: opps,
+      };
     }),
 
   // Track event (authenticated, internal use)

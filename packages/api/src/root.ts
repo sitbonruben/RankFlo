@@ -19,6 +19,7 @@ import { socialRouter } from "./routers/social.router";
 import { calendarRouter } from "./routers/calendar.router";
 import { billingRouter } from "./routers/billing.router";
 import { apiKeyRouter } from "./routers/apiKey.router";
+import { llmRouter } from "./routers/llm.router";
 
 export const appRouter = router({
   post: postRouter,
@@ -41,6 +42,7 @@ export const appRouter = router({
   calendar: calendarRouter,
   billing: billingRouter,
   apiKey: apiKeyRouter,
+  llm: llmRouter,
 });
 
 export type AppRouter = typeof appRouter;
