@@ -127,6 +127,14 @@ export const userRouter = router({
         userAgent,
       );
 
+      // Fire welcome email (async — don't block signup)
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.rankflo.io";
+      sendEmail({
+        to: input.email,
+        subject: "Welcome to RankFlo — your account is ready",
+        html: `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto"><div style="padding:40px 20px;background:#000;color:#fff"><h1 style="font-size:24px;margin:0 0 8px 0"><span style="color:#39FF14">RankFlo</span></h1></div><div style="padding:32px 20px;background:#fff;color:#09090B"><h2 style="font-size:20px;margin:0 0 16px 0">Welcome, ${input.name}</h2><p style="font-size:16px;line-height:1.5;color:#52525B">Your RankFlo account is ready. Start creating, publishing, and growing your audience.</p><a href="${appUrl}/overview" style="display:inline-block;margin-top:24px;padding:12px 24px;background:#000;color:#39FF14;text-decoration:none;border-radius:6px;font-size:14px;font-weight:600">Go to Dashboard</a></div><div style="padding:20px;background:#F4F4F5;color:#71717A;font-size:12px"><p style="margin:0">RankFlo — The blog platform built for what's next.</p></div></div>`,
+      }).catch(() => {}); // silently ignore email errors
+
       return { token, session };
     }),
 

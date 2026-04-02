@@ -466,12 +466,12 @@ export default function DashboardLayout({
 
             <button
               onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-              className="hidden h-9 w-52 items-center rounded-lg border border-gray-200 bg-gray-50 px-3 text-sm text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-500 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-600 dark:hover:border-gray-700 sm:flex"
+              className="hidden h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-gray-400 transition-colors hover:border-gray-300 hover:text-gray-500 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-600 dark:hover:border-gray-700 sm:flex"
+              title="Search (⌘K)"
             >
-              <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
               </svg>
-              Search... <kbd className="ml-auto rounded border border-gray-300 px-1.5 py-0.5 text-[10px] text-gray-400 dark:border-gray-700 dark:text-gray-600">⌘K</kbd>
             </button>
           </div>
 

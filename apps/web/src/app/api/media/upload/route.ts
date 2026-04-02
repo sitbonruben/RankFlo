@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateSession } from "@rankflo/auth";
-import { SESSION } from "@rankflo/core/constants";
+import { SESSION, PLAN_LIMITS } from "@rankflo/core/constants";
+import { db } from "@rankflo/db";
 import { presignPut, isS3Configured, s3PublicUrl } from "@/lib/s3-presign";
 import { randomUUID } from "crypto";
 
@@ -52,6 +53,28 @@ export async function POST(req: NextRequest) {
 
   if (body.fileSize > MAX_BYTES) {
     return NextResponse.json({ error: "File exceeds 50 MB limit" }, { status: 400 });
+  }
+
+  // ── Storage quota enforcement ──────────────────────────────
+  const orgId = session.membership?.organizationId;
+  const plan = session.membership?.organization?.plan ?? "FREE";
+  const limits = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS];
+
+  if (orgId && limits.maxMediaStorageMb !== -1) {
+    const usage = await db.media.aggregate({
+      where: { organizationId: orgId },
+      _sum: { fileSize: true },
+    });
+    const usedBytes = usage._sum.fileSize ?? 0;
+    const limitBytes = limits.maxMediaStorageMb * 1024 * 1024;
+
+    if (usedBytes + body.fileSize > limitBytes) {
+      const usedMb = Math.round(usedBytes / (1024 * 1024));
+      return NextResponse.json(
+        { error: `Storage limit reached (${usedMb} MB / ${limits.maxMediaStorageMb} MB). Upgrade to Pro for more storage.` },
+        { status: 403 },
+      );
+    }
   }
 
   const ext = body.fileName.split(".").pop() ?? "bin";
