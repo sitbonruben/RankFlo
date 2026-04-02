@@ -1,7 +1,23 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import type { PrismaClient } from "@rankflo/db";
 
 import { router, orgProcedure } from "../trpc";
+
+// ─── AI referrer domains ────────────────────────────────────
+const AI_REFERRER_DOMAINS: { domain: string; label: string; platform: string }[] = [
+  { domain: "perplexity.ai", label: "Perplexity", platform: "perplexity" },
+  { domain: "claude.ai", label: "Claude", platform: "claude" },
+  { domain: "chat.openai.com", label: "ChatGPT", platform: "chatgpt" },
+  { domain: "chatgpt.com", label: "ChatGPT", platform: "chatgpt" },
+  { domain: "gemini.google.com", label: "Google Gemini", platform: "gemini" },
+  { domain: "copilot.microsoft.com", label: "Copilot", platform: "copilot" },
+  { domain: "bing.com", label: "Bing AI", platform: "copilot" },
+  { domain: "you.com", label: "You.com", platform: "other" },
+  { domain: "phind.com", label: "Phind", platform: "other" },
+  { domain: "grok.com", label: "Grok", platform: "grok" },
+  { domain: "poe.com", label: "Poe", platform: "other" },
+];
 
 const dateRangeSchema = z.object({
   from: z.coerce.date(),
@@ -263,6 +279,181 @@ export const analyticsRouter = router({
         si: metric("speed-index"),
         opportunities: opps,
       };
+    }),
+
+  // Daily pageview + visitor time series for charts
+  timeSeries: orgProcedure
+    .input(dateRangeSchema)
+    .query(async ({ ctx, input }) => {
+      const { from, to, projectId } = input;
+      type Row = { date: string; pageviews: number; visitors: number };
+      const rows: Row[] = projectId
+        ? await ctx.db.$queryRawUnsafe<Row[]>(
+            `SELECT date_trunc('day', timestamp)::date::text AS date,
+                    COUNT(*)::int AS pageviews,
+                    COUNT(DISTINCT "visitorId")::int AS visitors
+             FROM analytics_events
+             WHERE "organizationId" = $1 AND "eventType" = 'pageview'
+               AND timestamp >= $2 AND timestamp <= $3 AND "projectId" = $4
+             GROUP BY 1 ORDER BY 1 ASC`,
+            ctx.organizationId, from, to, projectId,
+          )
+        : await ctx.db.$queryRawUnsafe<Row[]>(
+            `SELECT date_trunc('day', timestamp)::date::text AS date,
+                    COUNT(*)::int AS pageviews,
+                    COUNT(DISTINCT "visitorId")::int AS visitors
+             FROM analytics_events
+             WHERE "organizationId" = $1 AND "eventType" = 'pageview'
+               AND timestamp >= $2 AND timestamp <= $3
+             GROUP BY 1 ORDER BY 1 ASC`,
+            ctx.organizationId, from, to,
+          );
+
+      // Fill in missing days with 0
+      const map = new Map(rows.map((r) => [r.date, r]));
+      const filled: Row[] = [];
+      const cur = new Date(from);
+      cur.setHours(0, 0, 0, 0);
+      const end = new Date(to);
+      end.setHours(23, 59, 59, 999);
+      while (cur <= end) {
+        const key = cur.toISOString().slice(0, 10);
+        filled.push(map.get(key) ?? { date: key, pageviews: 0, visitors: 0 });
+        cur.setDate(cur.getDate() + 1);
+      }
+      return filled;
+    }),
+
+  // Session engagement metrics
+  engagement: orgProcedure
+    .input(dateRangeSchema)
+    .query(async ({ ctx, input }) => {
+      const { from, to, projectId } = input;
+      type EngRow = { avg_duration: number | null; total_sessions: number; total_pageviews: number };
+      const rows: EngRow[] = projectId
+        ? await ctx.db.$queryRawUnsafe<EngRow[]>(
+            `SELECT ROUND(AVG(duration) FILTER (WHERE duration > 0 AND duration < 3600))::int AS avg_duration,
+                    COUNT(DISTINCT "sessionId")::int AS total_sessions,
+                    COUNT(*)::int AS total_pageviews
+             FROM analytics_events
+             WHERE "organizationId" = $1 AND "eventType" = 'pageview'
+               AND timestamp >= $2 AND timestamp <= $3 AND "projectId" = $4`,
+            ctx.organizationId, from, to, projectId,
+          )
+        : await ctx.db.$queryRawUnsafe<EngRow[]>(
+            `SELECT ROUND(AVG(duration) FILTER (WHERE duration > 0 AND duration < 3600))::int AS avg_duration,
+                    COUNT(DISTINCT "sessionId")::int AS total_sessions,
+                    COUNT(*)::int AS total_pageviews
+             FROM analytics_events
+             WHERE "organizationId" = $1 AND "eventType" = 'pageview'
+               AND timestamp >= $2 AND timestamp <= $3`,
+            ctx.organizationId, from, to,
+          );
+      const r = rows[0];
+      const avgPagesPerSession =
+        r.total_sessions > 0
+          ? Number((r.total_pageviews / r.total_sessions).toFixed(1))
+          : 0;
+      return {
+        avgDuration: r.avg_duration ?? 0,
+        avgPagesPerSession,
+        totalSessions: r.total_sessions,
+        totalPageviews: r.total_pageviews,
+      };
+    }),
+
+  // Traffic arriving from AI platforms (perplexity.ai, claude.ai, etc.)
+  aiReferrers: orgProcedure
+    .input(dateRangeSchema)
+    .query(async ({ ctx, input }) => {
+      const { from, to, projectId } = input;
+      const where = {
+        ...baseWhere(ctx.organizationId, from, to, projectId),
+        referrer: { not: null as null },
+      };
+      const referrers = await ctx.db.analyticsEvent.groupBy({
+        by: ["referrer"],
+        where,
+        _count: { referrer: true },
+        orderBy: { _count: { referrer: "desc" } },
+        take: 200,
+      });
+
+      // Match against known AI domains
+      const matched = new Map<string, { label: string; platform: string; visits: number }>();
+      for (const r of referrers) {
+        if (!r.referrer) continue;
+        for (const ai of AI_REFERRER_DOMAINS) {
+          if (r.referrer.includes(ai.domain)) {
+            const existing = matched.get(ai.platform);
+            if (existing) {
+              existing.visits += r._count.referrer;
+            } else {
+              matched.set(ai.platform, { label: ai.label, platform: ai.platform, visits: r._count.referrer });
+            }
+            break;
+          }
+        }
+      }
+      return Array.from(matched.values()).sort((a, b) => b.visits - a.visits);
+    }),
+
+  // Content performance: top posts with period-over-period delta
+  contentPerformance: orgProcedure
+    .input(dateRangeSchema.extend({ limit: z.number().default(30) }))
+    .query(async ({ ctx, input }) => {
+      const { from, to, projectId, limit } = input;
+      const days = Math.round((to.getTime() - from.getTime()) / 86400000);
+      const prevFrom = new Date(from.getTime() - days * 86400000);
+      const prevTo = new Date(from.getTime() - 1);
+
+      const [current, previous, posts] = await Promise.all([
+        ctx.db.analyticsEvent.groupBy({
+          by: ["path"],
+          where: { ...baseWhere(ctx.organizationId, from, to, projectId), path: { not: null } },
+          _count: { path: true },
+          orderBy: { _count: { path: "desc" } },
+          take: limit * 5,
+        }),
+        ctx.db.analyticsEvent.groupBy({
+          by: ["path"],
+          where: { ...baseWhere(ctx.organizationId, prevFrom, prevTo, projectId), path: { not: null } },
+          _count: { path: true },
+        }),
+        ctx.db.post.findMany({
+          where: { organizationId: ctx.organizationId, status: "PUBLISHED", deletedAt: null },
+          select: { id: true, title: true, slug: true, publishedAt: true },
+        }),
+      ]);
+
+      const prevMap = new Map(previous.map((p) => [p.path, p._count.path]));
+
+      const slugMap = new Map<string, { views: number; prevViews: number; path: string }>();
+      for (const row of current) {
+        const parts = (row.path ?? "").split("/").filter(Boolean);
+        const slug = parts[parts.length - 1];
+        if (slug && !slugMap.has(slug)) {
+          slugMap.set(slug, {
+            views: row._count.path,
+            prevViews: prevMap.get(row.path) ?? 0,
+            path: row.path ?? "",
+          });
+        }
+      }
+
+      return posts
+        .map((post) => {
+          const stats = slugMap.get(post.slug) ?? { views: 0, prevViews: 0, path: `/${post.slug}` };
+          const delta =
+            stats.prevViews > 0
+              ? Math.round(((stats.views - stats.prevViews) / stats.prevViews) * 100)
+              : stats.views > 0
+              ? 100
+              : 0;
+          return { ...post, ...stats, delta };
+        })
+        .sort((a, b) => b.views - a.views)
+        .slice(0, limit);
     }),
 
   // Track event (authenticated, internal use)

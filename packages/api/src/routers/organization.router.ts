@@ -335,4 +335,47 @@ export const organizationRouter = router({
       });
       return { success: true };
     }),
+
+  // ─── Domains ─────────────────────────────────────────────
+  getDomains: orgProcedure.query(async ({ ctx }) => {
+    const org = await ctx.db.organization.findUnique({
+      where: { id: ctx.organizationId },
+      select: { customDomain: true, subdomain: true, slug: true },
+    });
+    return {
+      customDomain: org?.customDomain ?? null,
+      subdomain: org?.subdomain ?? null,
+      slug: org?.slug ?? null,
+    };
+  }),
+
+  setCustomDomain: orgProcedure
+    .use(requireRole("ADMIN"))
+    .input(
+      z.object({
+        customDomain: z
+          .string()
+          .regex(/^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/, "Invalid domain format")
+          .nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.customDomain) {
+        // Ensure no other org has this domain
+        const conflict = await ctx.db.organization.findFirst({
+          where: {
+            customDomain: input.customDomain,
+            NOT: { id: ctx.organizationId },
+          },
+        });
+        if (conflict) {
+          throw new TRPCError({ code: "CONFLICT", message: "Domain already in use" });
+        }
+      }
+      await ctx.db.organization.update({
+        where: { id: ctx.organizationId },
+        data: { customDomain: input.customDomain },
+      });
+      return { success: true };
+    }),
 });

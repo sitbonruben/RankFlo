@@ -255,6 +255,236 @@ export const llmRouter = router({
       return { success: true };
     }),
 
+  // ── AI Visibility Score (0–100) ──────────────────────────
+
+  visibilityScore: orgProcedure.query(async ({ ctx }) => {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [mentionCount, sentimentRows, citedPosts, totalPosts, topicsRows, promptRows] =
+      await Promise.all([
+        ctx.db.llmMention.count({
+          where: { organizationId: ctx.organizationId, mentionedAt: { gte: thirtyDaysAgo } },
+        }),
+        ctx.db.llmMention.groupBy({
+          by: ["sentiment"],
+          where: { organizationId: ctx.organizationId, mentionedAt: { gte: thirtyDaysAgo } },
+          _count: { sentiment: true },
+        }),
+        ctx.db.llmMention.findMany({
+          where: { organizationId: ctx.organizationId, url: { not: null } },
+          select: { url: true },
+          distinct: ["url"],
+        }),
+        ctx.db.post.count({
+          where: { organizationId: ctx.organizationId, status: "PUBLISHED", deletedAt: null },
+        }),
+        ctx.db.postTag.findMany({
+          where: { post: { organizationId: ctx.organizationId, status: "PUBLISHED", deletedAt: null } },
+          select: { tagId: true },
+          distinct: ["tagId"],
+        }),
+        ctx.db.llmPrompt.findMany({
+          where: { organizationId: ctx.organizationId },
+          select: { lastTestedAt: true },
+        }),
+      ]);
+
+    // Score components (each 0–100, weighted to total 100)
+    // 1. Mention volume: 0–30 pts (log scale — 10 mentions = 30 pts)
+    const mentionScore = Math.min(30, Math.round((Math.log10(Math.max(mentionCount, 1)) / Math.log10(10)) * 30));
+
+    // 2. Sentiment: 0–25 pts
+    const positive = sentimentRows.find((s) => s.sentiment === "positive")?._count.sentiment ?? 0;
+    const negative = sentimentRows.find((s) => s.sentiment === "negative")?._count.sentiment ?? 0;
+    const sentimentScore = mentionCount > 0
+      ? Math.round(((positive - negative * 0.5) / mentionCount) * 25)
+      : 0;
+    const clampedSentiment = Math.max(0, Math.min(25, sentimentScore));
+
+    // 3. Citations: 0–25 pts (unique posts cited)
+    const uniquePostsWithUrls = new Set(
+      citedPosts.map((m) => {
+        try { return new URL(m.url!).pathname.split("/").filter(Boolean).pop() ?? ""; } catch { return ""; }
+      }).filter(Boolean)
+    ).size;
+    const citationScore = Math.min(25, Math.round((uniquePostsWithUrls / Math.max(totalPosts, 1)) * 100));
+
+    // 4. Topic coverage: 0–10 pts
+    const topicCount = topicsRows.length;
+    const mentionedTopicCount = topicsRows.filter((t) => {
+      // simplistic: tag is "mentioned" if we have any mentions
+      return mentionCount > 0;
+    }).length;
+    const topicScore = topicCount > 0 ? Math.min(10, Math.round((mentionCount > 0 ? 1 : 0) * 10)) : 0;
+
+    // 5. Prompt testing: 0–10 pts
+    const testedPrompts = promptRows.filter((p) => p.lastTestedAt).length;
+    const totalPrompts = promptRows.length;
+    const promptScore = totalPrompts > 0 ? Math.min(10, Math.round((testedPrompts / totalPrompts) * 10)) : 0;
+
+    const total = Math.min(100, mentionScore + clampedSentiment + citationScore + topicScore + promptScore);
+
+    return {
+      total,
+      components: {
+        mentions: { score: mentionScore, max: 30, label: "Mention volume" },
+        sentiment: { score: clampedSentiment, max: 25, label: "Sentiment" },
+        citations: { score: citationScore, max: 25, label: "Content citations" },
+        topics: { score: topicScore, max: 10, label: "Topic coverage" },
+        prompts: { score: promptScore, max: 10, label: "Prompt testing" },
+      },
+      mentionCount,
+      citedPostCount: uniquePostsWithUrls,
+      testedPrompts,
+      totalPrompts,
+    };
+  }),
+
+  // ── Weekly mention trend (last 8 weeks) ──────────────────
+
+  weeklyTrend: orgProcedure.query(async ({ ctx }) => {
+    const weeks: { week: string; label: string; count: number }[] = [];
+    const now = new Date();
+    for (let i = 7; i >= 0; i--) {
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - i * 7 - now.getDay());
+      weekStart.setHours(0, 0, 0, 0);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999);
+
+      const count = await ctx.db.llmMention.count({
+        where: {
+          organizationId: ctx.organizationId,
+          mentionedAt: { gte: weekStart, lte: weekEnd },
+        },
+      });
+
+      const label = weekStart.toLocaleDateString("en", { month: "short", day: "numeric" });
+      weeks.push({ week: weekStart.toISOString().slice(0, 10), label, count });
+    }
+    return weeks;
+  }),
+
+  // ── Share of Voice ────────────────────────────────────────
+
+  shareOfVoice: orgProcedure.query(async ({ ctx }) => {
+    const org = await ctx.db.organization.findUnique({
+      where: { id: ctx.organizationId },
+      select: { name: true },
+    });
+    const orgName = org?.name ?? "";
+
+    const brands = await ctx.db.llmMention.groupBy({
+      by: ["brandName"],
+      where: { organizationId: ctx.organizationId },
+      _count: { brandName: true },
+    });
+
+    const total = brands.reduce((s, b) => s + b._count.brandName, 0);
+    if (total === 0) return [];
+
+    return brands
+      .map((b) => ({
+        brandName: b.brandName || orgName,
+        count: b._count.brandName,
+        percentage: Math.round((b._count.brandName / total) * 100),
+        isOwn: b.brandName === "" || b.brandName === orgName,
+      }))
+      .sort((a, b) => (b.isOwn ? 1 : 0) - (a.isOwn ? 1 : 0) || b.count - a.count);
+  }),
+
+  // ── Post LLM optimization checks ─────────────────────────
+
+  postOptimizationChecks: orgProcedure
+    .input(z.object({ postId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const post = await ctx.db.post.findUnique({
+        where: { id: input.postId, organizationId: ctx.organizationId },
+        include: {
+          seoMeta: true,
+          tags: { include: { tag: true } },
+        },
+      });
+      if (!post) return null;
+
+      const contentText = post.contentPlain ?? "";
+      const wordCount = contentText.split(/\s+/).filter(Boolean).length;
+      const hasH2 = contentText.includes("\n## ") || (post.contentHtml?.includes("<h2") ?? false);
+      const hasFaqSchema = post.seoMeta?.structuredData != null && JSON.stringify(post.seoMeta.structuredData).includes("FAQPage");
+      const hasArticleSchema = post.seoMeta?.structuredData != null;
+      const hasExcerpt = !!post.excerpt;
+      const hasMetaDesc = !!post.seoMeta?.metaDescription;
+      const tagCount = post.tags.length;
+      const hasFeaturedImage = !!post.featuredImage;
+
+      const checks = [
+        {
+          id: "word_count",
+          label: "1,500+ words",
+          description: "Comprehensive content gets cited more by AI systems",
+          passed: wordCount >= 1500,
+          impact: "high" as const,
+          value: `${wordCount.toLocaleString()} words`,
+        },
+        {
+          id: "headings",
+          label: "Clear H2 headings",
+          description: "Structured sections help AI parse and cite specific points",
+          passed: hasH2,
+          impact: "high" as const,
+        },
+        {
+          id: "meta_desc",
+          label: "Meta description set",
+          description: "AI often uses meta descriptions as summaries",
+          passed: hasMetaDesc,
+          impact: "medium" as const,
+        },
+        {
+          id: "excerpt",
+          label: "Excerpt written",
+          description: "A clear excerpt helps AI understand the post's focus",
+          passed: hasExcerpt,
+          impact: "medium" as const,
+        },
+        {
+          id: "schema",
+          label: "Structured data (JSON-LD)",
+          description: "Schema markup helps AI parse your content correctly",
+          passed: hasArticleSchema,
+          impact: "high" as const,
+        },
+        {
+          id: "faq_schema",
+          label: "FAQ schema",
+          description: "FAQPage schema makes your Q&A content directly citable by AI",
+          passed: hasFaqSchema,
+          impact: "medium" as const,
+        },
+        {
+          id: "tags",
+          label: "2+ tags assigned",
+          description: "Topics/tags help AI associate your post with relevant queries",
+          passed: tagCount >= 2,
+          impact: "low" as const,
+          value: `${tagCount} tag${tagCount !== 1 ? "s" : ""}`,
+        },
+        {
+          id: "featured_image",
+          label: "Featured image",
+          description: "Visual content increases citation likelihood in multimodal AI",
+          passed: hasFeaturedImage,
+          impact: "low" as const,
+        },
+      ];
+
+      const passed = checks.filter((c) => c.passed).length;
+      const score = Math.round((passed / checks.length) * 100);
+
+      return { postId: input.postId, title: post.title, score, checks, wordCount };
+    }),
+
   // ── Topics (derived from post tags) ──────────────────────
 
   topics: orgProcedure.query(async ({ ctx }) => {

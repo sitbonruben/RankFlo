@@ -49,6 +49,10 @@ export async function POST(req: NextRequest) {
     }
 
     const eventType = String(body.eventType ?? "pageview");
+    const customEvent = body.customEvent ? String(body.customEvent).slice(0, 200) : null;
+    const properties = customEvent
+      ? { event: customEvent, ...(body.properties && typeof body.properties === "object" ? body.properties as Record<string, unknown> : {}) }
+      : null;
     const path = body.path ? String(body.path).slice(0, 500) : null;
     const referrer = body.referrer ? String(body.referrer).slice(0, 1000) : null;
     const visitorId = body.visitorId ? String(body.visitorId).slice(0, 64) : "anon";
@@ -81,6 +85,7 @@ export async function POST(req: NextRequest) {
         utmTerm: utmTerm ?? undefined,
         utmContent: utmContent ?? undefined,
         country: country ?? undefined,
+        properties: properties ?? undefined,
       },
     });
 

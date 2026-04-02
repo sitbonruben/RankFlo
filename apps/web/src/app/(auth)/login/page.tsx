@@ -110,9 +110,9 @@ export default function LoginPage(): React.JSX.Element {
             <label htmlFor="password" className="text-sm text-gray-400">
               Password
             </label>
-            <a href="#" className="text-xs text-gray-600 hover:text-gray-400">
+            <Link href="/forgot-password" className="text-xs text-gray-600 hover:text-gray-400">
               Forgot?
-            </a>
+            </Link>
           </div>
           <input
             id="password"

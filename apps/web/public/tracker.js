@@ -121,4 +121,13 @@
       trackPageview();
     }
   });
+
+  // ── Custom events ────────────────────────────────────────
+  // Usage: window.rankflo.track("button_click", { label: "signup" })
+  window.rankflo = {
+    track: function (eventName, properties) {
+      if (!eventName || typeof eventName !== "string") return;
+      send("custom", { customEvent: eventName, properties: properties || {} });
+    },
+  };
 })();
