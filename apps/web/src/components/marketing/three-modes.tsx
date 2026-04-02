@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { FadeUp, AnimatePresence, motion } from "@/components/marketing/animations";
 
 const MODES = [
   {
@@ -253,7 +254,7 @@ export function ThreeModes() {
     <section className="bg-gray-950 py-24">
       <div className="mx-auto max-w-wide px-6">
         {/* Header */}
-        <div className="mb-12 text-center">
+        <FadeUp className="mb-12 text-center">
           <p className="text-sm font-semibold text-accent">One platform. Three growth engines.</p>
           <h2 className="mt-2 text-4xl font-bold tracking-tight text-white">
             Everything your content needs
@@ -261,7 +262,7 @@ export function ThreeModes() {
           <p className="mx-auto mt-4 max-w-lg text-gray-500">
             Most tools do one thing. RankFlo does all three — and they work together.
           </p>
-        </div>
+        </FadeUp>
 
         {/* Tab toggle */}
         <div className="flex justify-center mb-10">
@@ -285,27 +286,36 @@ export function ThreeModes() {
 
         {/* Content: left copy + right mockup */}
         <div className="grid items-start gap-10 lg:grid-cols-2">
-          {/* Copy */}
-          <div className="flex flex-col justify-center lg:pr-8">
-            <span className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${mode.pillClass} mb-5`}>
-              {mode.label}
-            </span>
-            <h3 className="text-3xl font-bold text-white">{mode.title}</h3>
-            <p className="mt-4 text-base leading-relaxed text-gray-500">{mode.desc}</p>
-            <ul className="mt-7 space-y-3">
-              {mode.bullets.map((b) => (
-                <li key={b} className="flex items-center gap-3 text-sm text-gray-300">
-                  <svg className={`h-4 w-4 shrink-0 ${mode.accentClass}`} fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                  </svg>
-                  {b}
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* Copy — crossfade on tab change */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={active + "-copy"}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="flex flex-col justify-center lg:pr-8"
+            >
+              <span className={`inline-flex w-fit items-center rounded-full px-3 py-1 text-xs font-semibold ${mode.pillClass} mb-5`}>
+                {mode.label}
+              </span>
+              <h3 className="text-3xl font-bold text-white">{mode.title}</h3>
+              <p className="mt-4 text-base leading-relaxed text-gray-500">{mode.desc}</p>
+              <ul className="mt-7 space-y-3">
+                {mode.bullets.map((b) => (
+                  <li key={b} className="flex items-center gap-3 text-sm text-gray-300">
+                    <svg className={`h-4 w-4 shrink-0 ${mode.accentClass}`} fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                    </svg>
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
+          </AnimatePresence>
 
-          {/* Dashboard mockup */}
-          <div className={`overflow-hidden rounded-2xl border bg-gray-950 shadow-2xl transition-all duration-300 ${mode.activeBorder}`}>
+          {/* Dashboard mockup — crossfade on tab change */}
+          <div className={`overflow-hidden rounded-2xl border bg-gray-950 shadow-2xl transition-colors duration-300 ${mode.activeBorder}`}>
             {/* Window chrome */}
             <div className="flex items-center gap-1.5 border-b border-gray-800 px-4 py-2.5">
               <div className="h-2.5 w-2.5 rounded-full bg-red-500/40" />
@@ -313,7 +323,17 @@ export function ThreeModes() {
               <div className="h-2.5 w-2.5 rounded-full bg-green-500/40" />
               <span className="ml-3 text-[10px] text-gray-600">app.rankflo.io / {active === "seo" ? "posts" : active === "analytics" ? "analytics" : "llms"}</span>
             </div>
-            {MOCKUPS[active]}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={active + "-mockup"}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+              >
+                {MOCKUPS[active]}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </div>
