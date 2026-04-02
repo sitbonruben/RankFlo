@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Script from "next/script";
 import { useState } from "react";
 import { Logo } from "@/components/logo";
 
@@ -181,6 +182,13 @@ export default function MarketingLayout({
 
       <main className="relative z-10 pt-16 bg-black">{children}</main>
       <MarketingFooter />
+
+      {/* RankFlo analytics — eating our own dog food */}
+      <Script
+        src="/tracker.js"
+        data-project-key={process.env.NEXT_PUBLIC_SELF_PROJECT_KEY ?? ""}
+        strategy="afterInteractive"
+      />
     </>
   );
 }
