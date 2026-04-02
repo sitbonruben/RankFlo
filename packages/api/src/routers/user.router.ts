@@ -6,6 +6,7 @@ import {
   signUpSchema,
   signInSchema,
   updateUserSchema,
+  changePasswordSchema,
 } from "@rankflo/core/validators";
 import {
   hashPassword,
@@ -223,6 +224,37 @@ export const userRouter = router({
       });
 
       return user;
+    }),
+
+  changePassword: protectedProcedure
+    .input(changePasswordSchema)
+    .mutation(async ({ ctx, input }) => {
+      const user = await ctx.db.user.findUnique({
+        where: { id: ctx.session.user.id },
+        select: { passwordHash: true },
+      });
+
+      if (!user?.passwordHash) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Cannot change password for OAuth accounts",
+        });
+      }
+
+      const valid = verifyPassword(input.currentPassword, user.passwordHash);
+      if (!valid) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Current password is incorrect",
+        });
+      }
+
+      await ctx.db.user.update({
+        where: { id: ctx.session.user.id },
+        data: { passwordHash: hashPassword(input.newPassword) },
+      });
+
+      return { success: true };
     }),
 
   requestPasswordReset: publicProcedure
