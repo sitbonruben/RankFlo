@@ -38,7 +38,7 @@ export default async function BlogPage() {
       deletedAt: null,
     },
     orderBy: { publishedAt: "desc" },
-    take: 10,
+    take: 50,
     select: {
       id: true,
       title: true,
