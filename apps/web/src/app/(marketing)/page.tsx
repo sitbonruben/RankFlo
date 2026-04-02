@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SiteCheckForm } from "@/components/marketing/site-check-form";
+import { ThreeModes } from "@/components/marketing/three-modes";
 
 export default function HomePage() {
   return (
@@ -74,7 +75,7 @@ export default function HomePage() {
                 <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/50" />
                 <div className="h-2.5 w-2.5 rounded-full bg-green-500/50" />
                 <div className="mx-auto flex items-center gap-6 text-xs text-gray-600">
-                  <span className="rounded bg-gray-800 px-3 py-1">Blog & SEO</span>
+                  <span className="rounded bg-gray-800 px-3 py-1 text-gray-400">Blog & SEO</span>
                   <span className="px-3 py-1">Analytics</span>
                   <span className="px-3 py-1">LLM Search</span>
                 </div>
@@ -85,15 +86,15 @@ export default function HomePage() {
               <div className="p-6">
                 <div className="grid grid-cols-4 gap-3 mb-6">
                   {[
-                    { label: "Organic visitors", value: "24,891", delta: "+31%", color: "text-accent" },
-                    { label: "AI citations", value: "847", delta: "+12%", color: "text-accent" },
-                    { label: "SEO score", value: "94", delta: "Excellent", color: "text-accent" },
-                    { label: "LLM visibility", value: "78/100", delta: "Grade B+", color: "text-amber-400" },
+                    { label: "Organic visitors", value: "24,891", delta: "+31%" },
+                    { label: "AI citations", value: "847", delta: "+12%" },
+                    { label: "SEO score", value: "94", delta: "Excellent" },
+                    { label: "LLM visibility", value: "78/100", delta: "Grade B+" },
                   ].map((s) => (
                     <div key={s.label} className="rounded-xl border border-gray-800 bg-black p-4">
                       <p className="text-xs text-gray-500">{s.label}</p>
                       <p className="mt-1 text-2xl font-bold text-white">{s.value}</p>
-                      <p className={`mt-0.5 text-xs font-medium ${s.color}`}>{s.delta}</p>
+                      <p className="mt-0.5 text-xs font-medium text-accent">{s.delta}</p>
                     </div>
                   ))}
                 </div>
@@ -108,7 +109,7 @@ export default function HomePage() {
                       ))}
                     </div>
                   </div>
-                  {/* AI citations breakdown */}
+                  {/* AI citations */}
                   <div className="rounded-xl border border-gray-800 bg-black p-4">
                     <p className="mb-3 text-xs text-gray-500">AI platform citations</p>
                     {[
@@ -134,96 +135,15 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ─── THREE MODES ──────────────────────────────────────── */}
-      <section className="bg-white py-24 dark:bg-gray-950">
-        <div className="mx-auto max-w-wide px-6">
-          <div className="mb-14 text-center">
-            <p className="text-sm font-semibold text-green-600 dark:text-accent">One platform. Three growth engines.</p>
-            <h2 className="mt-2 text-4xl font-bold tracking-tight text-gray-900 dark:text-white">
-              Everything your content needs
-            </h2>
-            <p className="mx-auto mt-4 max-w-lg text-gray-500">
-              Most tools do one thing. RankFlo does all three — and they work together.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {[
-              {
-                badge: "Blog & SEO",
-                badgeColor: "bg-green-50 text-green-700 dark:bg-accent/10 dark:text-accent",
-                icon: (
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                  </svg>
-                ),
-                title: "Publish content that ranks",
-                desc: "AI-powered editor that generates SEO-optimized posts in your brand voice. Built-in scoring, meta optimization, and structured data — without plugins.",
-                bullets: ["AI content generation", "Real-time SEO scoring", "Auto JSON-LD & Open Graph", "Full-text search API"],
-                glow: "hover:shadow-[0_0_40px_rgba(57,255,20,0.08)]",
-                accent: "border-green-200 dark:border-green-900/40",
-              },
-              {
-                badge: "Analytics",
-                badgeColor: "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-                icon: (
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                  </svg>
-                ),
-                title: "Know exactly what's working",
-                desc: "Cookieless, privacy-first analytics with one line of JavaScript. See pageviews, traffic sources, top content, and Core Web Vitals — all in one dashboard.",
-                bullets: ["One-line tracker.js setup", "Content performance tracking", "Traffic source attribution", "Custom events API"],
-                glow: "hover:shadow-[0_0_40px_rgba(59,130,246,0.08)]",
-                accent: "border-blue-200 dark:border-blue-900/40",
-              },
-              {
-                badge: "LLM Visibility",
-                badgeColor: "bg-purple-50 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-                icon: (
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                  </svg>
-                ),
-                title: "Get cited by ChatGPT & Perplexity",
-                desc: "Track when AI assistants mention your brand, log citations, monitor competitors' AI visibility, and optimize your content to appear in AI-generated answers.",
-                bullets: ["Brand mention tracking", "Share of Voice vs. competitors", "Prompt testing & monitoring", "AI citation optimization"],
-                glow: "hover:shadow-[0_0_40px_rgba(168,85,247,0.08)]",
-                accent: "border-purple-200 dark:border-purple-900/40",
-              },
-            ].map((mode) => (
-              <div
-                key={mode.badge}
-                className={`group relative rounded-2xl border bg-white p-8 transition-all ${mode.accent} ${mode.glow} dark:bg-gray-950`}
-              >
-                <div className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${mode.badgeColor} mb-4`}>
-                  {mode.badge}
-                </div>
-                <div className="mb-3 text-gray-400 dark:text-gray-500">{mode.icon}</div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">{mode.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-500">{mode.desc}</p>
-                <ul className="mt-5 space-y-2">
-                  {mode.bullets.map((b) => (
-                    <li key={b} className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                      <svg className="h-3.5 w-3.5 shrink-0 text-green-500 dark:text-accent" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                      </svg>
-                      {b}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ─── THREE MODES (interactive toggle) ────────────────── */}
+      <ThreeModes />
 
       {/* ─── HOW IT WORKS ─────────────────────────────────────── */}
-      <section className="border-y border-gray-100 bg-gray-50 py-24 dark:border-gray-800 dark:bg-black">
+      <section className="border-y border-gray-800 bg-black py-24">
         <div className="mx-auto max-w-wide px-6">
           <div className="mb-14 text-center">
-            <p className="text-sm font-semibold text-green-600 dark:text-accent">Setup in minutes</p>
-            <h2 className="mt-2 text-4xl font-bold tracking-tight text-gray-900 dark:text-white">From zero to publishing in 3 steps</h2>
+            <p className="text-sm font-semibold text-accent">Setup in minutes</p>
+            <h2 className="mt-2 text-4xl font-bold tracking-tight text-white">From zero to publishing in 3 steps</h2>
           </div>
 
           <div className="grid gap-8 md:grid-cols-3">
@@ -249,12 +169,12 @@ export default function HomePage() {
             ].map((s) => (
               <div key={s.step} className="relative">
                 <div className="mb-4 flex items-center gap-3">
-                  <span className="text-5xl font-bold text-gray-100 dark:text-gray-900 select-none">{s.step}</span>
-                  <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800" />
+                  <span className="text-5xl font-bold text-gray-900 select-none">{s.step}</span>
+                  <div className="h-px flex-1 bg-gray-800" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{s.title}</h3>
+                <h3 className="text-lg font-semibold text-white">{s.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-gray-500">{s.desc}</p>
-                <pre className="mt-4 overflow-x-auto rounded-xl border border-gray-200 bg-gray-900 p-4 text-xs leading-relaxed text-gray-300 dark:border-gray-800">
+                <pre className="mt-4 overflow-x-auto rounded-xl border border-gray-800 bg-gray-950 p-4 text-xs leading-relaxed text-gray-300">
                   <code>{s.code}</code>
                 </pre>
               </div>
@@ -264,14 +184,14 @@ export default function HomePage() {
       </section>
 
       {/* ─── FEATURES GRID ────────────────────────────────────── */}
-      <section className="py-24 dark:bg-gray-950">
+      <section className="py-24 bg-gray-950">
         <div className="mx-auto max-w-wide px-6">
           <div className="mb-14 text-center">
-            <p className="text-sm font-semibold text-green-600 dark:text-accent">Built different</p>
-            <h2 className="mt-2 text-4xl font-bold tracking-tight text-gray-900 dark:text-white">No plugins. No bloat. Just features.</h2>
+            <p className="text-sm font-semibold text-accent">Built different</p>
+            <h2 className="mt-2 text-4xl font-bold tracking-tight text-white">No plugins. No bloat. Just features.</h2>
           </div>
 
-          <div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200 dark:border-gray-800 dark:bg-gray-800 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-gray-800 bg-gray-800 sm:grid-cols-2 lg:grid-cols-4">
             {[
               { title: "Block editor", desc: "14+ block types including code, embeds, callouts, and custom HTML. Content stored as portable JSON.", icon: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" },
               { title: "REST + tRPC API", desc: "Type-safe APIs for posts, tags, search, sitemaps, and RSS. Plus webhooks on every publish event.", icon: "M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" },
@@ -282,13 +202,13 @@ export default function HomePage() {
               { title: "Custom domains", desc: "Point any domain to your blog with CNAME. Automatic HTTPS via your existing CDN.", icon: "M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3" },
               { title: "Self-hostable", desc: "Docker + PostgreSQL + Redis. Deploy on any VPS. Own your data. No vendor lock-in.", icon: "M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3m3 3a3 3 0 100 6h13.5a3 3 0 100-6m-16.5-3a3 3 0 013-3h13.5a3 3 0 013 3m-19.5 0a4.5 4.5 0 01.9-2.7L5.737 5.1a3.375 3.375 0 012.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 01.9 2.7m0 0a3 3 0 01-3 3m0 3h.008v.008h-.008v-.008z" },
             ].map((f) => (
-              <div key={f.title} className="group bg-white p-7 transition-colors hover:bg-gray-50 dark:bg-black dark:hover:bg-gray-950">
-                <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100 text-green-600 dark:bg-gray-900 dark:text-accent">
+              <div key={f.title} className="group bg-black p-7 transition-colors hover:bg-gray-950">
+                <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gray-900 text-accent">
                   <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d={f.icon} />
                   </svg>
                 </div>
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{f.title}</h3>
+                <h3 className="text-sm font-semibold text-white">{f.title}</h3>
                 <p className="mt-1 text-sm text-gray-500 leading-relaxed">{f.desc}</p>
               </div>
             ))}
@@ -297,25 +217,25 @@ export default function HomePage() {
       </section>
 
       {/* ─── OPEN SOURCE + PRICING STRIP ──────────────────────── */}
-      <section className="border-y border-gray-100 bg-gray-50 py-20 dark:border-gray-800 dark:bg-black">
+      <section className="border-y border-gray-800 bg-black py-20">
         <div className="mx-auto max-w-wide px-6">
           <div className="grid gap-12 md:grid-cols-2 md:items-center">
             {/* Open source */}
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-400 mb-4">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-800 bg-gray-950 px-3 py-1 text-xs text-gray-400 mb-4">
                 <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
                 MIT License · Open Source
               </span>
-              <h3 className="text-3xl font-bold text-gray-900 dark:text-white">Self-host free, forever</h3>
+              <h3 className="text-3xl font-bold text-white">Self-host free, forever</h3>
               <p className="mt-3 text-gray-500 leading-relaxed">
                 RankFlo is fully open source. Deploy on your own server with Docker — no usage limits, no monthly fees, no vendor lock-in.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <a href="https://github.com/sitbonruben/RankFlo" className="inline-flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-600">
+                <a href="https://github.com/sitbonruben/RankFlo" className="inline-flex h-10 items-center gap-2 rounded-xl border border-gray-700 bg-gray-950 px-4 text-sm font-medium text-gray-300 hover:border-gray-600">
                   <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
                   GitHub repo
                 </a>
-                <a href="https://dev.rankflo.io" className="inline-flex h-10 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-gray-600">
+                <a href="https://dev.rankflo.io" className="inline-flex h-10 items-center gap-2 rounded-xl border border-gray-700 bg-gray-950 px-4 text-sm font-medium text-gray-300 hover:border-gray-600">
                   Self-hosting guide →
                 </a>
               </div>
@@ -345,17 +265,17 @@ export default function HomePage() {
               ].map((plan) => (
                 <div
                   key={plan.name}
-                  className={`rounded-2xl border p-6 ${plan.highlight ? "border-accent/40 bg-accent/5 dark:bg-accent/5" : "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950"}`}
+                  className={`rounded-2xl border p-6 ${plan.highlight ? "border-accent/40 bg-accent/5" : "border-gray-800 bg-gray-950"}`}
                 >
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{plan.name}</p>
+                  <p className="text-sm font-semibold text-white">{plan.name}</p>
                   <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-3xl font-bold text-gray-900 dark:text-white">{plan.price}</span>
+                    <span className="text-3xl font-bold text-white">{plan.price}</span>
                     <span className="text-xs text-gray-500">{plan.period}</span>
                   </div>
                   <ul className="my-4 space-y-1.5">
                     {plan.features.map((f) => (
-                      <li key={f} className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400">
-                        <svg className="h-3 w-3 shrink-0 text-green-500 dark:text-accent" fill="currentColor" viewBox="0 0 20 20">
+                      <li key={f} className="flex items-center gap-2 text-xs text-gray-400">
+                        <svg className="h-3 w-3 shrink-0 text-accent" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
                         </svg>
                         {f}
@@ -364,14 +284,14 @@ export default function HomePage() {
                   </ul>
                   <Link
                     href={plan.href}
-                    className={`block w-full rounded-lg py-2 text-center text-sm font-semibold transition-all ${plan.highlight ? "bg-accent text-black hover:bg-accent-9" : "border border-gray-200 text-gray-700 hover:border-gray-300 hover:text-gray-900 dark:border-gray-700 dark:text-gray-300"}`}
+                    className={`block w-full rounded-lg py-2 text-center text-sm font-semibold transition-all ${plan.highlight ? "bg-accent text-black hover:bg-accent-9" : "border border-gray-700 text-gray-300 hover:border-gray-600"}`}
                   >
                     {plan.cta}
                   </Link>
                 </div>
               ))}
               <div className="col-span-2">
-                <Link href="/pricing" className="flex w-full items-center justify-center gap-1 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 py-2">
+                <Link href="/pricing" className="flex w-full items-center justify-center gap-1 text-sm text-gray-600 hover:text-gray-300 py-2">
                   See full pricing including Enterprise →
                 </Link>
               </div>
@@ -381,7 +301,7 @@ export default function HomePage() {
       </section>
 
       {/* ─── FAQ ──────────────────────────────────────────────── */}
-      <section className="py-24 dark:bg-gray-950">
+      <section className="py-24 bg-gray-950">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -400,7 +320,7 @@ export default function HomePage() {
           }}
         />
         <div className="mx-auto max-w-2xl px-6">
-          <h2 className="mb-10 text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Frequently asked questions</h2>
+          <h2 className="mb-10 text-3xl font-bold tracking-tight text-white">Frequently asked questions</h2>
           <div className="grid gap-5 sm:grid-cols-2">
             {[
               { q: "Is RankFlo free?", a: "The free plan includes 50 posts, 10 AI credits/month, and full API access. Self-host the open-source version for zero cost with no limits." },
@@ -410,8 +330,8 @@ export default function HomePage() {
               { q: "Can I self-host?", a: "Yes. MIT license, Docker Compose stack. One command to start: postgres + redis + web. Own your data, zero monthly fees." },
               { q: "Credit card required?", a: "No. Free plan starts immediately. Pro has a 7-day trial — card only needed if you keep it after the trial." },
             ].map(({ q, a }) => (
-              <div key={q} className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">{q}</h3>
+              <div key={q} className="rounded-xl border border-gray-800 bg-black p-5">
+                <h3 className="text-sm font-semibold text-white">{q}</h3>
                 <p className="mt-2 text-sm text-gray-500 leading-relaxed">{a}</p>
               </div>
             ))}
