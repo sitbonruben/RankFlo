@@ -4,7 +4,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="docs-page min-h-screen bg-black">
       <DocsSidebar />
-      <main className="lg:ml-64 min-h-[calc(100vh-4rem)]">
+      <main className="lg:ml-56 min-h-[calc(100vh-4rem)]">
         <div className="mx-auto max-w-3xl px-6 py-12 pb-24 sm:px-8 lg:px-16">
           <article className="docs-content">
             {children}
@@ -44,11 +44,11 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           line-height: 1.75;
           margin-bottom: 1rem;
         }
-        .docs-content a {
+        .docs-content a:not([class]) {
           color: #39FF14;
           text-decoration: none;
         }
-        .docs-content a:hover {
+        .docs-content a:not([class]):hover {
           text-decoration: underline;
         }
         .docs-content strong {

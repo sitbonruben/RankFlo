@@ -115,18 +115,8 @@ export function DocsSidebar() {
       </button>
 
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-64 overflow-y-auto border-r border-gray-800 bg-black transition-transform lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}>
-        {/* Logo area */}
-        <div className="flex items-center gap-2 border-b border-gray-800/60 px-5 py-4">
-          <Link href="/docs" className="flex items-center gap-2">
-            <span className="text-sm font-bold text-white">RankFlo</span>
-            <span className="rounded border border-gray-800 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider text-gray-500">
-              docs
-            </span>
-          </Link>
-        </div>
-
-        {/* Navigation */}
+      <aside className={`fixed left-0 top-16 z-40 h-[calc(100vh-4rem)] w-56 overflow-y-auto border-r border-gray-800 bg-black transition-transform lg:translate-x-0 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}>
+        {/* Navigation — starts right below the marketing nav */}
         <nav className="px-3 py-4">
           {NAV.map((section) => {
             const sectionActive = section.items.some((item) => {
