@@ -106,5 +106,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticPages, ...blogPages, ...topicPages, ...comparisonPages];
+  // Documentation pages
+  const docPages: MetadataRoute.Sitemap = [
+    "getting-started", "self-hosting", "api-reference", "user-guide", "webhooks",
+  ].map((slug) => ({
+    url: `${BASE_URL}/docs/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
+
+  const docsLanding: MetadataRoute.Sitemap = [{
+    url: `${BASE_URL}/docs`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }];
+
+  return [...staticPages, ...docsLanding, ...docPages, ...blogPages, ...topicPages, ...comparisonPages];
 }

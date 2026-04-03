@@ -8,7 +8,7 @@ export default function robots(): MetadataRoute.Robots {
       // Default: allow all public pages, block dashboard routes
       {
         userAgent: "*",
-        allow: ["/", "/blog/", "/for/", "/compare/", "/features", "/pricing", "/about"],
+        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/about"],
         disallow: [
           "/api/",
           "/overview",
@@ -29,48 +29,48 @@ export default function robots(): MetadataRoute.Robots {
       // Google Search
       {
         userAgent: "Googlebot",
-        allow: ["/", "/blog/", "/for/", "/compare/", "/features", "/pricing", "/about"],
+        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/about"],
         disallow: ["/api/", "/overview", "/posts", "/settings"],
       },
       // Google AI (Bard / Gemini training)
       {
         userAgent: "Google-Extended",
-        allow: ["/", "/blog/", "/for/", "/compare/", "/features", "/pricing"],
+        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing"],
       },
       // OpenAI / ChatGPT
       {
         userAgent: "GPTBot",
-        allow: ["/", "/blog/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
+        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
       },
       // Anthropic Claude
       {
         userAgent: "ClaudeBot",
-        allow: ["/", "/blog/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
+        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
       },
       // Anthropic crawler (alternate UA)
       {
         userAgent: "anthropic-ai",
-        allow: ["/", "/blog/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
+        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
       },
       // Perplexity AI
       {
         userAgent: "PerplexityBot",
-        allow: ["/", "/blog/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
+        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
       },
       // Apple Siri / Apple Intelligence
       {
         userAgent: "Applebot-Extended",
-        allow: ["/", "/blog/", "/for/", "/compare/", "/features", "/pricing"],
+        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing"],
       },
       // Meta AI
       {
         userAgent: "Meta-ExternalAgent",
-        allow: ["/", "/blog/", "/for/", "/compare/"],
+        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/"],
       },
       // Cohere AI
       {
         userAgent: "cohere-ai",
-        allow: ["/", "/blog/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
+        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
       },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,
