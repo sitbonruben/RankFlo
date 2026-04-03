@@ -2,10 +2,10 @@ import { DocsSidebar } from "@/components/marketing/docs-sidebar";
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-black">
+    <div className="docs-page min-h-screen bg-black">
       <DocsSidebar />
-      <main className="lg:ml-64">
-        <div className="mx-auto max-w-3xl px-6 py-12 sm:px-8 lg:px-16">
+      <main className="lg:ml-64 min-h-[calc(100vh-4rem)]">
+        <div className="mx-auto max-w-3xl px-6 py-12 pb-24 sm:px-8 lg:px-16">
           <article className="docs-content">
             {children}
           </article>

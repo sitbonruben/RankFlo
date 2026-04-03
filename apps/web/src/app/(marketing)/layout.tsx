@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Script from "next/script";
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 
 function MarketingNav() {
@@ -163,25 +164,30 @@ export default function MarketingLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const isDocs = pathname.startsWith("/docs");
+
   return (
     <>
       <MarketingNav />
 
-      {/* Decorative vertical guide lines */}
-      <div className="pointer-events-none fixed inset-0 z-0" aria-hidden="true">
-        <div className="mx-auto h-full w-full max-w-wide px-6">
-          <div className="flex h-full justify-between">
-            <div className="w-px bg-gradient-to-b from-transparent via-gray-800/40 to-transparent" />
-            <div className="w-px bg-gradient-to-b from-transparent via-gray-800/30 to-transparent" />
-            <div className="w-px bg-gradient-to-b from-transparent via-gray-800/40 to-transparent" />
-            <div className="w-px bg-gradient-to-b from-transparent via-gray-800/30 to-transparent" />
-            <div className="w-px bg-gradient-to-b from-transparent via-gray-800/40 to-transparent" />
+      {/* Decorative vertical guide lines — hidden on docs pages */}
+      {!isDocs && (
+        <div className="pointer-events-none fixed inset-0 z-0" aria-hidden="true">
+          <div className="mx-auto h-full w-full max-w-wide px-6">
+            <div className="flex h-full justify-between">
+              <div className="w-px bg-gradient-to-b from-transparent via-gray-800/40 to-transparent" />
+              <div className="w-px bg-gradient-to-b from-transparent via-gray-800/30 to-transparent" />
+              <div className="w-px bg-gradient-to-b from-transparent via-gray-800/40 to-transparent" />
+              <div className="w-px bg-gradient-to-b from-transparent via-gray-800/30 to-transparent" />
+              <div className="w-px bg-gradient-to-b from-transparent via-gray-800/40 to-transparent" />
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <main className="relative z-10 pt-16 bg-black">{children}</main>
-      <MarketingFooter />
+      {!isDocs && <MarketingFooter />}
 
       {/* RankFlo analytics — eating our own dog food */}
       <Script
