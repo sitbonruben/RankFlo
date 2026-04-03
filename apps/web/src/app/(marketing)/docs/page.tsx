@@ -8,9 +8,11 @@ export const metadata: Metadata = {
 
 const cards = [
   { title: "Getting Started", description: "Install RankFlo, configure your environment, and publish your first post in under 10 minutes.", href: "/docs/getting-started", badge: "Start here" },
-  { title: "Self-Hosting", description: "Deploy RankFlo on your own infrastructure with Docker Compose and production best practices.", href: "/docs/self-hosting" },
+  { title: "Analytics Setup", description: "Add cookieless analytics to your site with one line of code. Track pageviews, AI referrers, and custom events.", href: "/docs/analytics-setup" },
+  { title: "LLM Visibility", description: "Track when ChatGPT, Perplexity, and Claude mention your brand. Automated monitoring and optimization.", href: "/docs/llm-visibility" },
   { title: "API Reference", description: "Authenticate, query content endpoints, handle pagination, and integrate with any frontend.", href: "/docs/api-reference" },
-  { title: "User Guide", description: "Learn the dashboard, editor, AI tools, analytics, team management, and more.", href: "/docs/user-guide" },
+  { title: "User Guide", description: "Learn the dashboard, editor, AI tools, team management, and more.", href: "/docs/user-guide" },
+  { title: "Self-Hosting", description: "Deploy on your own infrastructure with Docker Compose and production best practices.", href: "/docs/self-hosting" },
   { title: "Webhooks", description: "Subscribe to real-time events and verify payloads with HMAC-SHA256 signatures.", href: "/docs/webhooks" },
 ];
 

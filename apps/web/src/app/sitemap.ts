@@ -108,7 +108,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Documentation pages
   const docPages: MetadataRoute.Sitemap = [
-    "getting-started", "self-hosting", "api-reference", "user-guide", "webhooks",
+    "getting-started", "self-hosting", "api-reference", "user-guide", "webhooks", "analytics-setup", "llm-visibility",
   ].map((slug) => ({
     url: `${BASE_URL}/docs/${slug}`,
     lastModified: new Date(),
