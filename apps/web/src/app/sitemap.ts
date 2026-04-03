@@ -127,6 +127,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const toolPages: MetadataRoute.Sitemap = [
     "blog-title-generator", "meta-description-generator", "reading-time-calculator",
     "schema-generator", "og-preview", "robots-txt-generator", "heading-checker", "word-counter",
+    "slug-generator", "markdown-to-html", "keyword-density-checker", "hreflang-generator", "sitemap-generator",
   ].map((slug) => ({
     url: `${BASE_URL}/tools/${slug}`,
     lastModified: new Date(),

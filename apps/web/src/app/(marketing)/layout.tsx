@@ -9,12 +9,12 @@ import { Logo } from "@/components/logo";
 const TOOLS = [
   { href: "/tools/blog-title-generator", label: "Blog Title Generator", desc: "10 SEO titles from a topic", icon: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" },
   { href: "/tools/schema-generator", label: "Schema Generator", desc: "Article, FAQ, HowTo JSON-LD", icon: "M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" },
+  { href: "/tools/keyword-density-checker", label: "Keyword Density", desc: "Check keyword frequency & density", icon: "M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5" },
+  { href: "/tools/slug-generator", label: "URL Slug Generator", desc: "Clean SEO-friendly URLs", icon: "M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" },
   { href: "/tools/og-preview", label: "OG Preview", desc: "Facebook & Twitter card mockup", icon: "M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" },
+  { href: "/tools/markdown-to-html", label: "Markdown → HTML", desc: "Convert MD to clean HTML", icon: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" },
   { href: "/tools/robots-txt-generator", label: "Robots.txt Generator", desc: "AI bot rules for GPTBot, Claude", icon: "M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3" },
-  { href: "/tools/word-counter", label: "Word Counter", desc: "Count, readability, grade level", icon: "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" },
-  { href: "/tools/meta-description-generator", label: "Meta Description", desc: "Click-worthy under 160 chars", icon: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" },
-  { href: "/tools/heading-checker", label: "Heading Checker", desc: "H1-H6 hierarchy audit", icon: "M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" },
-  { href: "/tools/reading-time-calculator", label: "Reading Time", desc: "Word count & read time", icon: "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" },
+  { href: "/tools/sitemap-generator", label: "Sitemap Generator", desc: "XML sitemap from URL list", icon: "M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" },
 ];
 
 function MarketingNav() {
