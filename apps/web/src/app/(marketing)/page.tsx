@@ -335,23 +335,30 @@ export default function HomePage() {
         />
         <div className="mx-auto max-w-2xl px-6">
           <FadeUp>
-            <h2 className="mb-10 text-3xl font-bold tracking-tight text-white">Frequently asked questions</h2>
+            <p className="text-sm font-semibold text-accent mb-2">FAQ</p>
+            <h2 className="text-3xl font-bold tracking-tight text-white">Frequently asked questions</h2>
+            <p className="mt-3 text-gray-500">Everything you need to know about RankFlo.</p>
           </FadeUp>
-          <StaggerChildren stagger={0.08} className="grid gap-5 sm:grid-cols-2">
+          <FadeUp delay={0.1} className="mt-10 divide-y divide-gray-800 rounded-2xl border border-gray-800 bg-black">
             {[
-              { q: "Is RankFlo free?", a: "The free plan includes unlimited posts, 30-day analytics, and 100 MB storage. Bring your own AI keys. Self-host for zero cost with no limits." },
-              { q: "How is it different from Ghost?", a: "RankFlo is headless — content via fast API, not themes. AI writing, SEO scoring, analytics, and LLM tracking are all built in, not plugins." },
-              { q: "What is LLM Visibility?", a: "Track when ChatGPT, Perplexity, and Claude mention your brand. Log citations, monitor competitors, and optimize to appear in AI answers." },
-              { q: "What AI models work with it?", a: "OpenAI (GPT-4o), Anthropic (Claude), Google (Gemini), and local Ollama models. Bring your own API key to use AI features." },
-              { q: "Can I self-host?", a: "Yes. MIT license, Docker Compose stack. One command to start: postgres + redis + web. Own your data, zero monthly fees." },
-              { q: "Credit card required?", a: "No. Free plan starts immediately. Pro has a 7-day trial — card only needed if you keep it after the trial." },
+              { q: "Is RankFlo free?", a: "Yes. The free plan includes unlimited posts, 30-day analytics, and 100 MB storage. You bring your own AI API keys — RankFlo charges nothing for AI usage. You can also self-host the entire platform for free with no limits." },
+              { q: "How is it different from Ghost or WordPress?", a: "RankFlo is headless — content is delivered via a fast REST API, not server-rendered themes. AI writing, real-time SEO scoring, cookieless analytics, and LLM visibility tracking are all built into the platform, not bolted on as plugins." },
+              { q: "What is LLM Visibility?", a: "LLM Visibility tracks when AI assistants like ChatGPT, Perplexity, and Claude mention your brand in their answers. You can log citations, monitor how competitors appear in AI responses, and optimize your content to get cited more often." },
+              { q: "What AI models does it support?", a: "RankFlo supports OpenAI (GPT-4o), Anthropic (Claude), Google (Gemini), and local models via Ollama. You bring your own API key — connect it in Settings and AI features are instantly available at your own cost." },
+              { q: "Can I self-host RankFlo?", a: "Yes. RankFlo is MIT-licensed and ships as a Docker Compose stack. Run it on any VPS with PostgreSQL and Redis. One command to start. Own your data completely with zero monthly fees to us." },
+              { q: "Do I need a credit card to start?", a: "No. The free plan starts immediately with no card required. Pro includes a 7-day free trial — you only need a card if you decide to continue after the trial." },
             ].map(({ q, a }) => (
-              <motion.div key={q} variants={staggerChildVariants} className="rounded-xl border border-gray-800 bg-black p-5">
-                <h3 className="text-sm font-semibold text-white">{q}</h3>
-                <p className="mt-2 text-sm text-gray-500 leading-relaxed">{a}</p>
-              </motion.div>
+              <details key={q} className="group">
+                <summary className="flex cursor-pointer items-center justify-between px-6 py-5 text-sm font-semibold text-white hover:text-accent transition-colors list-none">
+                  {q}
+                  <svg className="h-4 w-4 shrink-0 text-gray-600 transition-transform group-open:rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                </summary>
+                <div className="px-6 pb-5 text-sm text-gray-400 leading-relaxed">{a}</div>
+              </details>
             ))}
-          </StaggerChildren>
+          </FadeUp>
         </div>
       </section>
 
