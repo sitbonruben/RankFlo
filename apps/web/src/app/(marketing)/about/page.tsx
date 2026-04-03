@@ -291,7 +291,7 @@ export default function AboutPage() {
               Start for free
             </Link>
             <a
-              href="https://docs.rankflo.io"
+              href="/docs"
               className="inline-flex h-12 items-center rounded-xl border border-gray-700 px-8 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
             >
               Read the docs

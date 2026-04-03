@@ -334,7 +334,7 @@ export function PricingContent() {
           </p>
           <div className="mt-6 flex items-center justify-center gap-3">
             <a
-              href="https://docs.rankflo.io/docs/self-hosting"
+              href="/docs/self-hosting"
               className="inline-flex h-10 items-center rounded-lg border border-gray-700 px-4 text-sm font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
             >
               Self-hosting guide

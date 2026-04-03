@@ -24,7 +24,7 @@ function MarketingNav() {
               {l.label}
             </Link>
           ))}
-          <a href="https://docs.rankflo.io" target="_blank" rel="noopener noreferrer" className="text-sm text-gray-400 transition-colors hover:text-white">
+          <a href="/docs" className="text-sm text-gray-400 transition-colors hover:text-white">
             Docs
           </a>
         </nav>
@@ -72,7 +72,7 @@ function MarketingNav() {
                 {l.label}
               </Link>
             ))}
-            <a href="https://docs.rankflo.io" target="_blank" rel="noopener noreferrer" className="py-3 text-sm text-gray-400 transition-colors hover:text-white">
+            <a href="/docs" target="_blank" rel="noopener noreferrer" className="py-3 text-sm text-gray-400 transition-colors hover:text-white">
               Docs
             </a>
             <div className="mt-3 flex flex-col gap-2 border-t border-gray-800/50 pt-4">
@@ -109,9 +109,9 @@ function MarketingFooter() {
             {
               title: "Developers",
               links: [
-                { href: "https://docs.rankflo.io/docs/getting-started", label: "Documentation", external: true },
-                { href: "https://docs.rankflo.io/docs/api-reference", label: "API Reference", external: true },
-                { href: "https://docs.rankflo.io/docs/self-hosting", label: "Self-hosting", external: true },
+                { href: "/docs/docs/getting-started", label: "Documentation", external: true },
+                { href: "/docs/docs/api-reference", label: "API Reference", external: true },
+                { href: "/docs/docs/self-hosting", label: "Self-hosting", external: true },
                 { href: "https://github.com/sitbonruben/RankFlo", label: "GitHub", external: true },
               ],
             },
