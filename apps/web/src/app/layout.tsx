@@ -97,12 +97,7 @@ export default function RootLayout({
         <ThemeProvider>
           <TRPCProvider>{children}</TRPCProvider>
         </ThemeProvider>
-        {/* RankFlo self-tracking — records traffic on app.rankflo.io */}
-        <Script
-          src="/tracker.js"
-          data-project-key={process.env.NEXT_PUBLIC_SELF_PROJECT_KEY ?? ""}
-          strategy="afterInteractive"
-        />
+        {/* Tracker is in (marketing)/layout.tsx only — not here, to avoid tracking dashboard navigation */}
       </body>
     </html>
   );
