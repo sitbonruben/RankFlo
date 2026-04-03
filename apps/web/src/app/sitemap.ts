@@ -123,5 +123,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }];
 
-  return [...staticPages, ...docsLanding, ...docPages, ...blogPages, ...topicPages, ...comparisonPages];
+  // Free tool pages
+  const toolPages: MetadataRoute.Sitemap = [
+    "blog-title-generator", "meta-description-generator", "reading-time-calculator",
+    "schema-generator", "og-preview", "robots-txt-generator", "heading-checker", "word-counter",
+  ].map((slug) => ({
+    url: `${BASE_URL}/tools/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
+  const toolsLanding: MetadataRoute.Sitemap = [{
+    url: `${BASE_URL}/tools`,
+    lastModified: new Date(),
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }];
+
+  return [...staticPages, ...docsLanding, ...docPages, ...toolsLanding, ...toolPages, ...blogPages, ...topicPages, ...comparisonPages];
 }
