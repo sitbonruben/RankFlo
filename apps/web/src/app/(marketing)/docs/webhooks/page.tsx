@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { CodeBlock } from "@/components/marketing/docs-code";
+import { Callout } from "@/components/marketing/docs-callout";
 
 export const metadata: Metadata = {
   title: "Webhooks — RankFlo Docs",
@@ -11,7 +13,7 @@ export default function WebhooksPage() {
       <h1>Webhooks</h1>
       <p>RankFlo webhooks deliver real-time notifications to your server when events occur. Use them to trigger deployments, update caches, and keep external systems in sync.</p>
 
-      <h2>Event Types</h2>
+      <h2 id="events">Event Types</h2>
       <table>
         <thead><tr><th>Event</th><th>Description</th></tr></thead>
         <tbody>
@@ -22,8 +24,8 @@ export default function WebhooksPage() {
         </tbody>
       </table>
 
-      <h2>Payload Format</h2>
-      <pre><code>{`{
+      <h2 id="payload">Payload Format</h2>
+      <CodeBlock language="json" code={`{
   "id": "evt_01abc123",
   "type": "post.published",
   "timestamp": "2025-01-15T10:30:00Z",
@@ -33,9 +35,8 @@ export default function WebhooksPage() {
     "slug": "hello-world",
     "status": "PUBLISHED"
   }
-}`}</code></pre>
+}`} />
 
-      <p>Headers included with every delivery:</p>
       <table>
         <thead><tr><th>Header</th><th>Description</th></tr></thead>
         <tbody>
@@ -46,11 +47,11 @@ export default function WebhooksPage() {
         </tbody>
       </table>
 
-      <h2>Signature Verification</h2>
-      <p>The signature is computed over: <code>{`{timestamp}.{raw_request_body}`}</code></p>
+      <h2 id="verification">Signature Verification</h2>
+      <p>The signature is computed over: <code>{`{timestamp}.{raw_body}`}</code></p>
 
       <h3>Node.js</h3>
-      <pre><code>{`import crypto from "node:crypto";
+      <CodeBlock language="javascript" code={`import crypto from "node:crypto";
 
 function verifyWebhookSignature(payload, signature, timestamp, secret) {
   const signedPayload = \`\${timestamp}.\${payload}\`;
@@ -63,19 +64,23 @@ function verifyWebhookSignature(payload, signature, timestamp, secret) {
     Buffer.from(signature),
     Buffer.from(expected)
   );
-}`}</code></pre>
+}`} />
 
       <h3>Python</h3>
-      <pre><code>{`import hmac, hashlib
+      <CodeBlock language="python" code={`import hmac, hashlib
 
 def verify_webhook_signature(payload, signature, timestamp, secret):
     signed_payload = f"{timestamp}.{payload.decode()}"
     expected = hmac.new(
         secret.encode(), signed_payload.encode(), hashlib.sha256
     ).hexdigest()
-    return hmac.compare_digest(signature, expected)`}</code></pre>
+    return hmac.compare_digest(signature, expected)`} />
 
-      <h2>Retry Policy</h2>
+      <Callout type="warning">
+        <p>Reject any delivery where the timestamp is more than 5 minutes old to prevent replay attacks.</p>
+      </Callout>
+
+      <h2 id="retries">Retry Policy</h2>
       <table>
         <thead><tr><th>Attempt</th><th>Delay</th></tr></thead>
         <tbody>
@@ -87,22 +92,22 @@ def verify_webhook_signature(payload, signature, timestamp, secret):
         </tbody>
       </table>
 
-      <h2>Configuring Webhooks</h2>
+      <h2 id="setup">Configuring Webhooks</h2>
       <ol>
         <li>Navigate to <strong>Settings → Webhooks</strong></li>
         <li>Click <strong>Add endpoint</strong></li>
         <li>Enter your endpoint URL (must be HTTPS)</li>
-        <li>Select the events you want to subscribe to</li>
+        <li>Select the events to subscribe to</li>
         <li>Copy the generated signing secret</li>
       </ol>
 
-      <h2>Best Practices</h2>
+      <h2 id="best-practices">Best Practices</h2>
       <ul>
-        <li><strong>Return 200 quickly.</strong> Process payloads asynchronously.</li>
-        <li><strong>Verify signatures.</strong> Always validate the HMAC header.</li>
-        <li><strong>Handle duplicates.</strong> Use the event ID to deduplicate.</li>
-        <li><strong>Use HTTPS.</strong> Plain HTTP endpoints are rejected.</li>
-        <li><strong>Monitor failures.</strong> Check the dashboard for failed deliveries.</li>
+        <li><strong>Return 200 quickly</strong> — process payloads asynchronously</li>
+        <li><strong>Verify signatures</strong> — always validate the HMAC header</li>
+        <li><strong>Handle duplicates</strong> — use the event ID to deduplicate</li>
+        <li><strong>Use HTTPS</strong> — plain HTTP endpoints are rejected</li>
+        <li><strong>Monitor failures</strong> — check the dashboard for failed deliveries</li>
       </ul>
     </div>
   );

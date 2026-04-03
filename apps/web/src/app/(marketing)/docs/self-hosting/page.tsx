@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { CodeBlock } from "@/components/marketing/docs-code";
+import { Callout } from "@/components/marketing/docs-callout";
 
 export const metadata: Metadata = {
   title: "Self-Hosting — RankFlo Docs",
@@ -11,9 +13,9 @@ export default function SelfHostingPage() {
       <h1>Self-Hosting</h1>
       <p>Run RankFlo on your own infrastructure. This guide covers Docker Compose setup, required environment variables, and production best practices.</p>
 
-      <h2>Docker Compose</h2>
-      <p>The fastest way to self-host RankFlo is with Docker Compose:</p>
-      <pre><code>{`version: "3.9"
+      <h2 id="docker-compose">Docker Compose</h2>
+      <p>The fastest way to self-host RankFlo:</p>
+      <CodeBlock language="yaml" code={`version: "3.9"
 
 services:
   web:
@@ -40,8 +42,6 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U rankflo"]
       interval: 5s
-      timeout: 5s
-      retries: 5
     restart: unless-stopped
 
   redis:
@@ -52,11 +52,10 @@ services:
 
 volumes:
   postgres_data:
-  redis_data:`}</code></pre>
-      <p>Start the stack:</p>
-      <pre><code>docker compose up -d</code></pre>
+  redis_data:`} />
+      <CodeBlock language="bash" code="docker compose up -d" />
 
-      <h2>Environment Variables</h2>
+      <h2 id="env-vars">Environment Variables</h2>
       <h3>Required</h3>
       <table>
         <thead><tr><th>Variable</th><th>Description</th></tr></thead>
@@ -73,10 +72,10 @@ volumes:
         <thead><tr><th>Variable</th><th>Default</th><th>Description</th></tr></thead>
         <tbody>
           <tr><td><code>PORT</code></td><td>3000</td><td>HTTP server port</td></tr>
-          <tr><td><code>GITHUB_CLIENT_ID</code></td><td>—</td><td>GitHub OAuth app client ID</td></tr>
-          <tr><td><code>GITHUB_CLIENT_SECRET</code></td><td>—</td><td>GitHub OAuth app client secret</td></tr>
-          <tr><td><code>SMTP_HOST</code></td><td>—</td><td>SMTP server for transactional email</td></tr>
-          <tr><td><code>S3_BUCKET</code></td><td>—</td><td>S3-compatible bucket for media uploads</td></tr>
+          <tr><td><code>GITHUB_CLIENT_ID</code></td><td>—</td><td>GitHub OAuth client ID</td></tr>
+          <tr><td><code>GITHUB_CLIENT_SECRET</code></td><td>—</td><td>GitHub OAuth client secret</td></tr>
+          <tr><td><code>SMTP_HOST</code></td><td>—</td><td>SMTP server for email</td></tr>
+          <tr><td><code>S3_BUCKET</code></td><td>—</td><td>S3-compatible bucket for media</td></tr>
           <tr><td><code>S3_REGION</code></td><td>us-east-1</td><td>S3 region</td></tr>
           <tr><td><code>S3_ACCESS_KEY</code></td><td>—</td><td>S3 access key</td></tr>
           <tr><td><code>S3_SECRET_KEY</code></td><td>—</td><td>S3 secret key</td></tr>
@@ -84,20 +83,23 @@ volumes:
         </tbody>
       </table>
 
-      <h2>Production Checklist</h2>
+      <h2 id="checklist">Production Checklist</h2>
+      <Callout type="warning">
+        <p>Verify all items before going live.</p>
+      </Callout>
       <ul>
-        <li><code>AUTH_SECRET</code> is a cryptographically random string of at least 32 characters</li>
-        <li>PostgreSQL has connection pooling enabled</li>
-        <li>Redis persistence is configured (<code>appendonly yes</code>)</li>
-        <li>HTTPS is terminated at the reverse proxy (nginx, Caddy)</li>
-        <li>S3 or compatible object storage is configured for media uploads</li>
-        <li>Transactional email is configured (SMTP or a provider like Resend)</li>
-        <li>Backups are scheduled for PostgreSQL</li>
+        <li><code>AUTH_SECRET</code> is a cryptographically random string (min 32 chars)</li>
+        <li>PostgreSQL has connection pooling (PgBouncer)</li>
+        <li>Redis persistence enabled (<code>appendonly yes</code>)</li>
+        <li>HTTPS terminated at reverse proxy (nginx, Caddy)</li>
+        <li>S3 or compatible storage configured for media</li>
+        <li>Transactional email configured (SMTP or Resend/Postmark)</li>
+        <li>PostgreSQL backups scheduled</li>
       </ul>
 
-      <h2>Reverse Proxy</h2>
+      <h2 id="reverse-proxy">Reverse Proxy</h2>
       <p>A minimal nginx configuration:</p>
-      <pre><code>{`server {
+      <CodeBlock language="nginx" code={`server {
     listen 443 ssl http2;
     server_name your-domain.com;
 
@@ -111,12 +113,14 @@ volumes:
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
-}`}</code></pre>
+}`} />
 
-      <h2>Updating</h2>
-      <pre><code>{`docker compose pull
-docker compose up -d`}</code></pre>
-      <p>Database migrations run automatically on startup. Always back up your database before performing an upgrade.</p>
+      <h2 id="updating">Updating</h2>
+      <CodeBlock language="bash" code={`docker compose pull
+docker compose up -d`} />
+      <Callout type="info">
+        <p>Database migrations run automatically on startup. Always back up your database before upgrading.</p>
+      </Callout>
     </div>
   );
 }
