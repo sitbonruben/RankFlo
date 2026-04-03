@@ -6,54 +6,20 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Logo } from "@/components/logo";
 
-const FEATURES = [
-  { href: "/features", label: "Blog & SEO", desc: "AI editor, SEO scoring, structured data", icon: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" },
-  { href: "/features", label: "Analytics", desc: "Cookieless tracking, AI referrers, UTM", icon: "M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75z" },
-  { href: "/features", label: "LLM Visibility", desc: "Track AI mentions, share of voice", icon: "M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" },
-  { href: "/features", label: "AI Writer", desc: "OpenAI, Claude, Gemini, Ollama — BYO key", icon: "M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" },
-];
-
 const TOOLS = [
-  { href: "/tools/blog-title-generator", label: "Blog Title Generator" },
-  { href: "/tools/meta-description-generator", label: "Meta Description Generator" },
-  { href: "/tools/reading-time-calculator", label: "Reading Time Calculator" },
-  { href: "/tools/schema-generator", label: "JSON-LD Schema Generator" },
-  { href: "/tools/og-preview", label: "Open Graph Preview" },
-  { href: "/tools/robots-txt-generator", label: "Robots.txt Generator" },
-  { href: "/tools/heading-checker", label: "Heading Structure Checker" },
-  { href: "/tools/word-counter", label: "Word Count & Readability" },
+  { href: "/tools/blog-title-generator", label: "Blog Title Generator", desc: "10 SEO titles from a topic", icon: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" },
+  { href: "/tools/schema-generator", label: "Schema Generator", desc: "Article, FAQ, HowTo JSON-LD", icon: "M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" },
+  { href: "/tools/og-preview", label: "OG Preview", desc: "Facebook & Twitter card mockup", icon: "M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" },
+  { href: "/tools/robots-txt-generator", label: "Robots.txt Generator", desc: "AI bot rules for GPTBot, Claude", icon: "M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3" },
+  { href: "/tools/word-counter", label: "Word Counter", desc: "Count, readability, grade level", icon: "M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" },
+  { href: "/tools/meta-description-generator", label: "Meta Description", desc: "Click-worthy under 160 chars", icon: "M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" },
+  { href: "/tools/heading-checker", label: "Heading Checker", desc: "H1-H6 hierarchy audit", icon: "M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" },
+  { href: "/tools/reading-time-calculator", label: "Reading Time", desc: "Word count & read time", icon: "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" },
 ];
-
-const QUICK_LINKS = [
-  { href: "/pricing", label: "Pricing" },
-  { href: "/docs", label: "Documentation" },
-  { href: "/docs/self-hosting", label: "Self-Hosting Guide" },
-  { href: "/docs/api-reference", label: "API Reference" },
-];
-
-function NavDropdown({ label, children, isOpen, onToggle }: { label: string; children: React.ReactNode; isOpen: boolean; onToggle: () => void }) {
-  return (
-    <div className="relative" onMouseEnter={onToggle} onMouseLeave={onToggle}>
-      <button className={`flex items-center gap-1 text-sm transition-colors ${isOpen ? "text-white" : "text-gray-400 hover:text-white"}`}>
-        {label}
-        <svg className={`h-3 w-3 transition-transform ${isOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-        </svg>
-      </button>
-      {isOpen && (
-        <div className="absolute left-1/2 top-full -translate-x-1/2 pt-3">
-          <div className="rounded-xl border border-gray-800 bg-gray-950 shadow-2xl shadow-black/50">
-            {children}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function MarketingNav() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [openDrop, setOpenDrop] = useState<string | null>(null);
+  const [toolsOpen, setToolsOpen] = useState(false);
 
   return (
     <header className="fixed top-0 z-50 w-full border-b border-gray-800/50 bg-black/80 backdrop-blur-xl">
@@ -62,52 +28,42 @@ function MarketingNav() {
 
         {/* Desktop nav */}
         <nav className="hidden items-center gap-7 md:flex">
-          {/* Features dropdown */}
-          <NavDropdown label="Features" isOpen={openDrop === "features"} onToggle={() => setOpenDrop(openDrop === "features" ? null : "features")}>
-            <div className="flex w-[540px]">
-              <div className="flex-1 border-r border-gray-800 p-4">
-                <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-gray-600">Platform</p>
-                {FEATURES.map((f) => (
-                  <Link key={f.label} href={f.href} onClick={() => setOpenDrop(null)} className="flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-gray-900">
-                    <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gray-900 text-accent">
-                      <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={f.icon} /></svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-white">{f.label}</p>
-                      <p className="text-xs text-gray-500">{f.desc}</p>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-              <div className="w-44 p-4">
-                <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-gray-600">Quick links</p>
-                {QUICK_LINKS.map((l) => (
-                  <Link key={l.href} href={l.href} onClick={() => setOpenDrop(null)} className="block rounded-lg px-2 py-1.5 text-sm text-gray-400 transition-colors hover:bg-gray-900 hover:text-white">
-                    {l.label}
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </NavDropdown>
+          <Link href="/features" className="text-sm text-gray-400 transition-colors hover:text-white">Features</Link>
 
           {/* Tools dropdown */}
-          <NavDropdown label="Tools" isOpen={openDrop === "tools"} onToggle={() => setOpenDrop(openDrop === "tools" ? null : "tools")}>
-            <div className="w-[380px] p-4">
-              <p className="mb-2 px-2 text-[10px] font-semibold uppercase tracking-widest text-gray-600">Free SEO Tools</p>
-              <div className="grid grid-cols-2 gap-1">
-                {TOOLS.map((t) => (
-                  <Link key={t.href} href={t.href} onClick={() => setOpenDrop(null)} className="rounded-lg px-2 py-2 text-sm text-gray-400 transition-colors hover:bg-gray-900 hover:text-white">
-                    {t.label}
-                  </Link>
-                ))}
+          <div className="relative" onMouseEnter={() => setToolsOpen(true)} onMouseLeave={() => setToolsOpen(false)}>
+            <button className={`flex items-center gap-1 text-sm transition-colors ${toolsOpen ? "text-white" : "text-gray-400 hover:text-white"}`}>
+              Free Tools
+              <svg className={`h-3 w-3 transition-transform ${toolsOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+              </svg>
+            </button>
+            {toolsOpen && (
+              <div className="absolute left-1/2 top-full -translate-x-1/2 pt-4">
+                <div className="w-[480px] rounded-xl border border-gray-800 bg-gray-950 p-3 shadow-2xl shadow-black/60">
+                  <div className="grid grid-cols-2 gap-0.5">
+                    {TOOLS.map((t) => (
+                      <Link key={t.href} href={t.href} onClick={() => setToolsOpen(false)}
+                        className="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-gray-900">
+                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-gray-900 text-gray-500 group-hover:text-accent transition-colors">
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d={t.icon} /></svg>
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-medium text-gray-200 group-hover:text-white">{t.label}</p>
+                          <p className="text-[11px] text-gray-600 group-hover:text-gray-400">{t.desc}</p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                  <div className="mt-2 border-t border-gray-800 pt-2 px-3">
+                    <Link href="/tools" onClick={() => setToolsOpen(false)} className="text-xs font-medium text-accent hover:underline">
+                      View all tools →
+                    </Link>
+                  </div>
+                </div>
               </div>
-              <div className="mt-3 border-t border-gray-800 pt-3">
-                <Link href="/tools" onClick={() => setOpenDrop(null)} className="flex items-center gap-1 px-2 text-sm font-medium text-accent hover:underline">
-                  View all tools →
-                </Link>
-              </div>
-            </div>
-          </NavDropdown>
+            )}
+          </div>
 
           <Link href="/pricing" className="text-sm text-gray-400 transition-colors hover:text-white">Pricing</Link>
           <Link href="/blog" className="text-sm text-gray-400 transition-colors hover:text-white">Blog</Link>
@@ -133,20 +89,17 @@ function MarketingNav() {
       {mobileOpen && (
         <div className="border-t border-gray-800/50 bg-black md:hidden">
           <nav className="flex flex-col px-6 py-4">
-            <p className="py-2 text-[10px] font-semibold uppercase tracking-widest text-gray-600">Features</p>
-            {FEATURES.map((f) => (
-              <Link key={f.label} href={f.href} onClick={() => setMobileOpen(false)} className="py-2 pl-3 text-sm text-gray-400 hover:text-white">{f.label}</Link>
-            ))}
-            <p className="mt-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-gray-600">Free Tools</p>
+            <Link href="/features" onClick={() => setMobileOpen(false)} className="py-2.5 text-sm text-gray-300 font-medium hover:text-white">Features</Link>
+            <Link href="/pricing" onClick={() => setMobileOpen(false)} className="py-2.5 text-sm text-gray-300 font-medium hover:text-white">Pricing</Link>
+            <Link href="/blog" onClick={() => setMobileOpen(false)} className="py-2.5 text-sm text-gray-300 font-medium hover:text-white">Blog</Link>
+            <Link href="/docs" onClick={() => setMobileOpen(false)} className="py-2.5 text-sm text-gray-300 font-medium hover:text-white">Docs</Link>
+
+            <p className="mt-3 pt-3 border-t border-gray-800/50 pb-1 text-[10px] font-semibold uppercase tracking-widest text-gray-600">Free Tools</p>
             {TOOLS.slice(0, 4).map((t) => (
-              <Link key={t.href} href={t.href} onClick={() => setMobileOpen(false)} className="py-2 pl-3 text-sm text-gray-400 hover:text-white">{t.label}</Link>
+              <Link key={t.href} href={t.href} onClick={() => setMobileOpen(false)} className="py-2 pl-2 text-sm text-gray-400 hover:text-white">{t.label}</Link>
             ))}
-            <Link href="/tools" onClick={() => setMobileOpen(false)} className="py-2 pl-3 text-sm text-accent">All tools →</Link>
-            <div className="mt-3 border-t border-gray-800/50 pt-3 space-y-2">
-              <Link href="/pricing" onClick={() => setMobileOpen(false)} className="block py-2 text-sm text-gray-400 hover:text-white">Pricing</Link>
-              <Link href="/blog" onClick={() => setMobileOpen(false)} className="block py-2 text-sm text-gray-400 hover:text-white">Blog</Link>
-              <Link href="/docs" onClick={() => setMobileOpen(false)} className="block py-2 text-sm text-gray-400 hover:text-white">Docs</Link>
-            </div>
+            <Link href="/tools" onClick={() => setMobileOpen(false)} className="py-2 pl-2 text-sm text-accent">All tools →</Link>
+
             <div className="mt-3 flex flex-col gap-2 border-t border-gray-800/50 pt-4">
               <Link href="/login" onClick={() => setMobileOpen(false)} className="flex h-10 items-center justify-center rounded-lg border border-gray-700 text-sm font-medium text-gray-300 hover:bg-gray-900">Sign in</Link>
               <Link href="/signup" onClick={() => setMobileOpen(false)} className="flex h-10 items-center justify-center rounded-lg bg-accent text-sm font-semibold text-black hover:bg-accent-9">Start free</Link>
