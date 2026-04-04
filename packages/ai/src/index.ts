@@ -74,7 +74,16 @@ export function resolveAIConfig(): AIConfig | null {
     };
   }
 
-  // Check each provider key in priority order
+  // Check each provider key in priority order (cheapest first)
+  if (process.env.GOOGLE_AI_API_KEY) {
+    return {
+      provider: explicitProvider ?? "google",
+      apiKey: process.env.GOOGLE_AI_API_KEY,
+      model: explicitModel,
+      baseUrl: explicitBaseUrl,
+    };
+  }
+
   if (process.env.OPENAI_API_KEY) {
     return {
       provider: explicitProvider ?? "openai",
@@ -88,15 +97,6 @@ export function resolveAIConfig(): AIConfig | null {
     return {
       provider: explicitProvider ?? "anthropic",
       apiKey: process.env.ANTHROPIC_API_KEY,
-      model: explicitModel,
-      baseUrl: explicitBaseUrl,
-    };
-  }
-
-  if (process.env.GOOGLE_AI_API_KEY) {
-    return {
-      provider: explicitProvider ?? "google",
-      apiKey: process.env.GOOGLE_AI_API_KEY,
       model: explicitModel,
       baseUrl: explicitBaseUrl,
     };
