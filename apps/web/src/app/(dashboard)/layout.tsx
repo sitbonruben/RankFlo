@@ -171,15 +171,16 @@ function UserMenu() {
 
   const { data: me } = trpc.user.me.useQuery();
   const signOut = trpc.user.signOut.useMutation({
-    onSuccess: () => {
-      // Clear session cookie with all possible attributes to ensure deletion
-      document.cookie = "rankflo_session=; path=/; max-age=0; samesite=lax";
-      document.cookie = "rankflo_session=; path=/; max-age=0; secure; samesite=lax";
-      document.cookie = "rankflo_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-      // Hard redirect to flush all client state
-      window.location.href = "/login";
-    },
+    onSuccess: () => doSignOut(),
+    onError: () => doSignOut(), // Sign out client-side even if server call fails
   });
+
+  function doSignOut() {
+    document.cookie = "rankflo_session=; path=/; max-age=0";
+    document.cookie = "rankflo_session=; path=/; max-age=0; secure; samesite=lax";
+    document.cookie = "rankflo_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    window.location.href = "/login";
+  }
 
   useEffect(() => {
     function handle(e: MouseEvent) {
@@ -254,7 +255,7 @@ function UserMenu() {
           </div>
           <div className="border-t border-gray-100 p-1 dark:border-gray-800">
             <button
-              onClick={() => signOut.mutate()}
+              onClick={() => { signOut.mutate(); setTimeout(doSignOut, 2000); }}
               disabled={signOut.isPending}
               className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 disabled:opacity-50"
             >
