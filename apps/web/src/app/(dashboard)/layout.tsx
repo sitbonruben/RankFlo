@@ -170,17 +170,9 @@ function UserMenu() {
   const ref = useRef<HTMLDivElement>(null);
 
   const { data: me } = trpc.user.me.useQuery();
-  const signOut = trpc.user.signOut.useMutation();
-
   function doSignOut() {
-    // Clear cookie immediately — don't wait for server
-    document.cookie = "rankflo_session=; path=/; max-age=0";
-    document.cookie = "rankflo_session=; path=/; max-age=0; secure; samesite=lax";
-    document.cookie = "rankflo_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    // Try to invalidate server session (fire and forget)
-    try { signOut.mutate(); } catch {}
-    // Redirect immediately
-    window.location.href = "/login";
+    // POST to server-side signout route — it clears the HttpOnly cookie and redirects
+    window.location.href = "/api/auth/signout";
   }
 
   useEffect(() => {
