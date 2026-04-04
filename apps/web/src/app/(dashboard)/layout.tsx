@@ -172,8 +172,12 @@ function UserMenu() {
   const { data: me } = trpc.user.me.useQuery();
   const signOut = trpc.user.signOut.useMutation({
     onSuccess: () => {
-      document.cookie = "rankflo_session=; path=/; max-age=0";
-      router.push("/login");
+      // Clear session cookie with all possible attributes to ensure deletion
+      document.cookie = "rankflo_session=; path=/; max-age=0; samesite=lax";
+      document.cookie = "rankflo_session=; path=/; max-age=0; secure; samesite=lax";
+      document.cookie = "rankflo_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+      // Hard redirect to flush all client state
+      window.location.href = "/login";
     },
   });
 
