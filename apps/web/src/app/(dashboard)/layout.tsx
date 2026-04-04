@@ -170,15 +170,16 @@ function UserMenu() {
   const ref = useRef<HTMLDivElement>(null);
 
   const { data: me } = trpc.user.me.useQuery();
-  const signOut = trpc.user.signOut.useMutation({
-    onSuccess: () => doSignOut(),
-    onError: () => doSignOut(), // Sign out client-side even if server call fails
-  });
+  const signOut = trpc.user.signOut.useMutation();
 
   function doSignOut() {
+    // Clear cookie immediately — don't wait for server
     document.cookie = "rankflo_session=; path=/; max-age=0";
     document.cookie = "rankflo_session=; path=/; max-age=0; secure; samesite=lax";
     document.cookie = "rankflo_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    // Try to invalidate server session (fire and forget)
+    try { signOut.mutate(); } catch {}
+    // Redirect immediately
     window.location.href = "/login";
   }
 
@@ -255,8 +256,7 @@ function UserMenu() {
           </div>
           <div className="border-t border-gray-100 p-1 dark:border-gray-800">
             <button
-              onClick={() => { signOut.mutate(); setTimeout(doSignOut, 2000); }}
-              disabled={signOut.isPending}
+              onClick={doSignOut}
               className="flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 disabled:opacity-50"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
