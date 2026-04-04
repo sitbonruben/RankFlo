@@ -55,6 +55,28 @@ async function queryPerplexity(prompt: string, apiKey: string): Promise<string |
   }
 }
 
+async function queryGoogle(prompt: string, apiKey: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 500 },
+        }),
+        signal: AbortSignal.timeout(30_000),
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+    return data.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function queryOpenAI(prompt: string, apiKey: string): Promise<string | null> {
   try {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -197,7 +219,8 @@ export async function POST(req: NextRequest) {
     // Also check env-level keys
     const openaiKey = aiProvider === "openai" && aiApiKey ? aiApiKey : process.env.OPENAI_API_KEY;
     const anthropicKey = aiProvider === "anthropic" && aiApiKey ? aiApiKey : process.env.ANTHROPIC_API_KEY;
-    const perplexityKey = process.env.PERPLEXITY_API_KEY; // Perplexity usually needs a separate key
+    const googleKey = aiProvider === "google" && aiApiKey ? aiApiKey : process.env.GOOGLE_AI_API_KEY;
+    const perplexityKey = process.env.PERPLEXITY_API_KEY;
 
     // Pick 2 random prompts to test (avoid burning too many API credits)
     const shuffled = [...TEST_PROMPTS].sort(() => Math.random() - 0.5);
@@ -251,6 +274,22 @@ export async function POST(req: NextRequest) {
           }
         } catch (e) {
           errors.push(`Perplexity error for org ${org.id}: ${e}`);
+        }
+      }
+
+      // Test Google/Gemini (cheapest — use for high-volume tracking)
+      if (googleKey) {
+        try {
+          const response = await queryGoogle(prompt, googleKey);
+          if (response) {
+            const mentions = detectMentions(response, prompt, "gemini", org.id);
+            for (const m of mentions) {
+              await db.llmMention.create({ data: m });
+              totalMentions++;
+            }
+          }
+        } catch (e) {
+          errors.push(`Google error for org ${org.id}: ${e}`);
         }
       }
     }
