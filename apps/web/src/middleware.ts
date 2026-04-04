@@ -16,6 +16,7 @@ const DASHBOARD_PREFIX = [
   "/api-keys",
   "/team",
   "/settings",
+  "/admin",
 ];
 
 export function middleware(request: NextRequest) {
