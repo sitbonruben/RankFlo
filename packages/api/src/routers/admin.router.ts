@@ -50,7 +50,7 @@ export const adminRouter = router({
     const recentAiUsage = recentLedger.map((l) => {
       const desc = l.description ?? "";
       const meta = (l.metadata as Record<string, unknown>) ?? {};
-      const feature = (meta.feature as string) ?? desc.replace(/^Used \d+ credits? for /, "").replace(/^Used \d+ credit for /, "") || "unknown";
+      const feature = (meta.feature as string) ?? (desc.replace(/^Used \d+ credits? for /, "").replace(/^Used \d+ credit for /, "") || "unknown");
       const hours = Math.round((now.getTime() - l.createdAt.getTime()) / 3600000);
       return {
         id: l.id,
@@ -75,7 +75,9 @@ export const adminRouter = router({
     for (const entry of monthUsage) {
       const m = (entry.metadata as Record<string, unknown>) ?? {};
       totalCostMonth += (m.estimatedCostUsd as number) ?? 0;
-      totalTokensMonth += ((m.inputTokens as number) ?? 0) + ((m.outputTokens as number) ?? 0);
+      const inTok = (m.inputTokens as number | undefined) ?? 0;
+      const outTok = (m.outputTokens as number | undefined) ?? 0;
+      totalTokensMonth += inTok + outTok;
     }
 
     return {
