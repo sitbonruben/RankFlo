@@ -23,7 +23,7 @@ function MarketingNav() {
 
   return (
     <header className="fixed top-0 z-50 w-full border-b border-gray-800/50 bg-black/80 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-wide items-center justify-between px-6">
+      <div className="flex h-16 items-center justify-between px-6 lg:px-10 xl:px-16">
         <Logo size={28} />
 
         {/* Desktop nav */}
