@@ -47,28 +47,44 @@ export const adminRouter = router({
       }),
     ]);
 
-    // Estimate content API calls from analytics events in last 24h
-    // (content API doesn't have its own logging yet)
-    const contentApiCalls24h = 0; // TODO: add API call logging
-
     const recentAiUsage = recentLedger.map((l) => {
       const desc = l.description ?? "";
-      const feature = desc.replace(/^Used \d+ credits? for /, "").replace(/^Used \d+ credit for /, "") || "unknown";
+      const meta = (l.metadata as Record<string, unknown>) ?? {};
+      const feature = (meta.feature as string) ?? desc.replace(/^Used \d+ credits? for /, "").replace(/^Used \d+ credit for /, "") || "unknown";
       const hours = Math.round((now.getTime() - l.createdAt.getTime()) / 3600000);
       return {
         id: l.id,
         feature,
         credits: Math.abs(l.amount),
+        provider: (meta.provider as string) ?? "—",
+        model: (meta.model as string) ?? "—",
+        inputTokens: (meta.inputTokens as number) ?? 0,
+        outputTokens: (meta.outputTokens as number) ?? 0,
+        costUsd: (meta.estimatedCostUsd as number) ?? 0,
         time: hours === 0 ? "just now" : `${hours}h ago`,
       };
     });
+
+    // Aggregate costs from all USAGE entries with metadata this month
+    const monthUsage = await ctx.db.creditLedger.findMany({
+      where: { type: "USAGE", createdAt: { gte: monthStart }, metadata: { not: null as unknown as undefined } },
+      select: { metadata: true },
+    });
+    let totalCostMonth = 0;
+    let totalTokensMonth = 0;
+    for (const entry of monthUsage) {
+      const m = (entry.metadata as Record<string, unknown>) ?? {};
+      totalCostMonth += (m.estimatedCostUsd as number) ?? 0;
+      totalTokensMonth += ((m.inputTokens as number) ?? 0) + ((m.outputTokens as number) ?? 0);
+    }
 
     return {
       creditsRemaining: creditsRemaining._sum.aiCreditsBalance ?? 0,
       creditsUsedToday: Math.abs(creditsUsedToday._sum.amount ?? 0),
       creditsUsedMonth: Math.abs(creditsUsedMonth._sum.amount ?? 0),
       analyticsEvents24h,
-      contentApiCalls24h,
+      totalCostMonth: Math.round(totalCostMonth * 1_000_000) / 1_000_000,
+      totalTokensMonth,
       recentAiUsage,
       totalUsers,
       totalMentions,

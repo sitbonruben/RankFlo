@@ -121,10 +121,18 @@ export async function generateContent(
   config: AIConfig,
   brief: ContentBrief,
   brandVoice?: BrandVoice,
-): Promise<GeneratedContent> {
+): Promise<GeneratedContent & { _usage?: { provider: string; model: string; inputTokens: number; outputTokens: number } }> {
   const provider = new AIProviderClient(config);
   const generator = new ContentGenerator(provider, brandVoice);
-  return generator.generate(brief);
+  const result = await generator.generate(brief);
+  return {
+    ...result,
+    _usage: {
+      provider: provider.provider,
+      model: provider.modelName,
+      ...provider.totalUsage,
+    },
+  };
 }
 
 /**
@@ -140,16 +148,23 @@ export async function suggestTopics(
     count?: number;
     contentScope?: string;
   },
-): Promise<TopicSuggestion[]> {
+): Promise<TopicSuggestion[] & { _usage?: { provider: string; model: string; inputTokens: number; outputTokens: number } }> {
   const provider = new AIProviderClient(config);
   const researcher = new TopicResearcher(provider);
-  return researcher.suggestTopics({
+  const result = await researcher.suggestTopics({
     industry: context.industry ?? "General",
     targetAudience: context.audience ?? "General audience",
     existingTopics: context.existingTopics,
     count: context.count,
     contentScope: context.contentScope,
   });
+  // Attach usage metadata to the array
+  (result as unknown as Record<string, unknown>)._usage = {
+    provider: provider.provider,
+    model: provider.modelName,
+    ...provider.totalUsage,
+  };
+  return result;
 }
 
 /**

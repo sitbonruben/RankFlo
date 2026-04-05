@@ -4,6 +4,7 @@ import crypto from "crypto";
 
 import { router, orgProcedure } from "../trpc";
 import { decrypt } from "../lib/encrypt";
+import { logTokenUsage } from "../lib/credits";
 import {
   resolveAIConfig,
   generateContent,
@@ -23,6 +24,21 @@ import { checkAndDeductCredits } from "../lib/credits";
 import { CREDIT_COSTS } from "@rankflo/core/constants";
 
 // ─── Helpers ────────────────────────────────────────────────
+
+/**
+ * Log token usage from an AI result that has _usage metadata attached.
+ * Fire-and-forget — never throws.
+ */
+async function maybeLogUsage(db: unknown, organizationId: string, result: unknown, feature: string) {
+  try {
+    const usage = (result as Record<string, unknown>)?._usage as
+      | { provider: string; model: string; inputTokens: number; outputTokens: number }
+      | undefined;
+    if (usage && usage.inputTokens > 0) {
+      await logTokenUsage(db as import("@rankflo/db").PrismaClient, organizationId, { ...usage, feature });
+    }
+  } catch {}
+}
 
 /**
  * Resolve AI config: org-level settings take priority over env vars.
@@ -191,6 +207,7 @@ export const aiRouter = router({
           brandVoice,
         );
 
+        await maybeLogUsage(ctx.db, ctx.organizationId, result, "generateContent");
         return result;
       } catch (error) {
         throw new TRPCError({
@@ -254,6 +271,7 @@ export const aiRouter = router({
           count: input.count,
         });
 
+        await maybeLogUsage(ctx.db, ctx.organizationId, topics, "suggestTopics");
         return { topics };
       } catch (error) {
         throw new TRPCError({
@@ -465,6 +483,7 @@ export const aiRouter = router({
           brandVoice,
         });
 
+        await maybeLogUsage(ctx.db, ctx.organizationId, result, "improveContent");
         return result;
       } catch (error) {
         throw new TRPCError({

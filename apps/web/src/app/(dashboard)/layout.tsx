@@ -225,17 +225,21 @@ function AdminApiButton() {
               </div>
             </div>
 
-            {/* API Calls */}
+            {/* API Costs */}
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-2">API calls (24h)</p>
-              <div className="grid grid-cols-2 gap-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-2">API costs (this month)</p>
+              <div className="grid grid-cols-3 gap-2">
                 <div className="rounded-lg bg-gray-50 p-2 dark:bg-gray-900">
-                  <p className="text-[10px] text-gray-500">Analytics events</p>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">{usage.analyticsEvents24h}</p>
+                  <p className="text-[10px] text-gray-500">Est. cost</p>
+                  <p className="text-sm font-bold text-accent">${usage.totalCostMonth?.toFixed(4) ?? "0"}</p>
                 </div>
                 <div className="rounded-lg bg-gray-50 p-2 dark:bg-gray-900">
-                  <p className="text-[10px] text-gray-500">Content API</p>
-                  <p className="text-sm font-bold text-gray-900 dark:text-white">{usage.contentApiCalls24h}</p>
+                  <p className="text-[10px] text-gray-500">Tokens</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{(usage.totalTokensMonth ?? 0).toLocaleString()}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-2 dark:bg-gray-900">
+                  <p className="text-[10px] text-gray-500">Events 24h</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{usage.analyticsEvents24h}</p>
                 </div>
               </div>
             </div>
@@ -247,11 +251,17 @@ function AdminApiButton() {
                 {usage.recentAiUsage.length === 0 && (
                   <p className="text-xs text-gray-400">No AI usage today</p>
                 )}
-                {usage.recentAiUsage.map((u: { id: string; feature: string; credits: number; time: string }) => (
+                {usage.recentAiUsage.map((u: { id: string; feature: string; credits: number; provider: string; model: string; inputTokens: number; outputTokens: number; costUsd: number; time: string }) => (
                   <div key={u.id} className="flex items-center justify-between text-xs">
-                    <span className="text-gray-500">{u.feature}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-red-400">-{u.credits}</span>
+                    <div className="min-w-0">
+                      <span className="text-gray-400">{u.feature}</span>
+                      {u.provider !== "—" && (
+                        <span className="ml-1 text-[10px] text-gray-600">{u.provider}/{u.model?.split("-").slice(0,2).join("-")}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-red-400">-{u.credits}cr</span>
+                      {u.costUsd > 0 && <span className="text-accent text-[10px]">${u.costUsd.toFixed(4)}</span>}
                       <span className="text-gray-600 text-[10px]">{u.time}</span>
                     </div>
                   </div>

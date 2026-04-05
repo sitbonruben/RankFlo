@@ -46,13 +46,21 @@ export class AIProviderClient {
   private readonly config: AIConfig;
   private readonly model: string;
 
+  /** Accumulated token usage across all calls on this client instance */
+  public totalUsage = { inputTokens: 0, outputTokens: 0 };
+
+  /** Provider name for cost tracking */
+  get provider() { return this.config.provider; }
+  /** Model name for cost tracking */
+  get modelName() { return this.model; }
+
   constructor(config: AIConfig) {
     this.config = config;
     this.model = config.model ?? DEFAULT_MODELS[config.provider] ?? "gpt-4o";
   }
 
   async complete(request: LLMRequest): Promise<LLMResponse> {
-    return this.withRetry(() => {
+    const response = await this.withRetry(() => {
       switch (this.config.provider) {
         case "openai":
           return this.openaiComplete(request);
@@ -71,6 +79,12 @@ export class AIProviderClient {
           );
       }
     }, request.longForm);
+
+    // Track cumulative token usage
+    this.totalUsage.inputTokens += response.usage.inputTokens;
+    this.totalUsage.outputTokens += response.usage.outputTokens;
+
+    return response;
   }
 
   async *stream(request: LLMRequest): AsyncGenerator<string> {
