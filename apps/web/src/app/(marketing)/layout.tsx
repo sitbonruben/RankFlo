@@ -265,6 +265,15 @@ export default function MarketingLayout({
         strategy="afterInteractive"
       />
 
+      {/* Google Analytics */}
+      <Script src="https://www.googletagmanager.com/gtag/js?id=G-PHRPPSSFLD" strategy="afterInteractive" />
+      <Script id="gtag-init" strategy="afterInteractive">
+        {`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-PHRPPSSFLD');`}
+      </Script>
+
       {/* HelpZen support chat widget */}
       <Script
         src="https://api.helpzen.io/api/v1/widget/script.js?v=2"
