@@ -98,6 +98,13 @@ export default function RootLayout({
           <TRPCProvider>{children}</TRPCProvider>
         </ThemeProvider>
         {/* Tracker is in (marketing)/layout.tsx only — not here, to avoid tracking dashboard navigation */}
+
+        {/* HelpZen support chat — available everywhere (marketing + dashboard) */}
+        <Script
+          src="https://api.helpzen.io/api/v1/widget/script.js?v=2"
+          data-workspace="helpzen"
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   );
