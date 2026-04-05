@@ -215,6 +215,13 @@ export default function MarketingLayout({
         data-project-key={process.env.NEXT_PUBLIC_SELF_PROJECT_KEY ?? ""}
         strategy="afterInteractive"
       />
+
+      {/* HelpZen support chat widget */}
+      <Script
+        src="https://api.helpzen.io/api/v1/widget/script.js"
+        data-workspace="helpzen"
+        strategy="lazyOnload"
+      />
     </>
   );
 }
