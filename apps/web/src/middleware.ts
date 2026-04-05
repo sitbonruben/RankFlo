@@ -23,6 +23,11 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const sessionToken = request.cookies.get("rankflo_session")?.value;
 
+  // Logged-in users on homepage → go to dashboard
+  if (pathname === "/" && sessionToken) {
+    return NextResponse.redirect(new URL("/overview", request.url));
+  }
+
   // Redirect authenticated users away from auth pages
   if (AUTH_ROUTES.some((route) => pathname.startsWith(route))) {
     if (sessionToken) {
