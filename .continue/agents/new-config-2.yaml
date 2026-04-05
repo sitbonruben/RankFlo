@@ -1,0 +1,12 @@
+models:
+  - name: Qwen 14B (Local)
+    provider: ollama
+    model: qwen2.5:14b
+  
+  - name: DeepSeek Coder (Local)
+    provider: ollama
+    model: deepseek-coder-v2:16b
+
+  - uses: anthropic/claude-4-sonnet
+    with:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

@@ -31,13 +31,15 @@ import { CREDIT_COSTS } from "@rankflo/core/constants";
  */
 async function maybeLogUsage(db: unknown, organizationId: string, result: unknown, feature: string) {
   try {
-    const usage = (result as Record<string, unknown>)?._usage as
-      | { provider: string; model: string; inputTokens: number; outputTokens: number }
-      | undefined;
+    const r = result as Record<string, unknown> | null;
+    if (!r) return;
+    const usage = r._usage as { provider: string; model: string; inputTokens: number; outputTokens: number } | undefined;
     if (usage && usage.inputTokens > 0) {
-      await logTokenUsage(db as import("@rankflo/db").PrismaClient, organizationId, { ...usage, feature });
+      await logTokenUsage(db as never, organizationId, { ...usage, feature });
     }
-  } catch {}
+  } catch {
+    // Never break the main flow
+  }
 }
 
 /**

@@ -67,7 +67,7 @@ export const adminRouter = router({
 
     // Aggregate costs from all USAGE entries with metadata this month
     const monthUsage = await ctx.db.creditLedger.findMany({
-      where: { type: "USAGE", createdAt: { gte: monthStart }, metadata: { not: null as unknown as undefined } },
+      where: { type: "USAGE", createdAt: { gte: monthStart } },
       select: { metadata: true },
     });
     let totalCostMonth = 0;
