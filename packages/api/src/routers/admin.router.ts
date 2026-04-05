@@ -11,6 +11,70 @@ const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
 });
 
 export const adminRouter = router({
+  apiUsage: adminProcedure.query(async ({ ctx }) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [
+      creditsRemaining,
+      creditsUsedToday,
+      creditsUsedMonth,
+      analyticsEvents24h,
+      totalUsers,
+      totalMentions,
+      recentLedger,
+    ] = await Promise.all([
+      ctx.db.organization.aggregate({ _sum: { aiCreditsBalance: true } }),
+      ctx.db.creditLedger.aggregate({
+        _sum: { amount: true },
+        where: { amount: { lt: 0 }, createdAt: { gte: today } },
+      }),
+      ctx.db.creditLedger.aggregate({
+        _sum: { amount: true },
+        where: { amount: { lt: 0 }, createdAt: { gte: monthStart } },
+      }),
+      ctx.db.analyticsEvent.count({
+        where: { timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+      }),
+      ctx.db.user.count(),
+      ctx.db.llmMention.count(),
+      ctx.db.creditLedger.findMany({
+        where: { amount: { lt: 0 }, createdAt: { gte: today } },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { id: true, amount: true, description: true, createdAt: true },
+      }),
+    ]);
+
+    // Estimate content API calls from analytics events in last 24h
+    // (content API doesn't have its own logging yet)
+    const contentApiCalls24h = 0; // TODO: add API call logging
+
+    const recentAiUsage = recentLedger.map((l) => {
+      const desc = l.description ?? "";
+      const feature = desc.replace(/^Used \d+ credits? for /, "").replace(/^Used \d+ credit for /, "") || "unknown";
+      const hours = Math.round((now.getTime() - l.createdAt.getTime()) / 3600000);
+      return {
+        id: l.id,
+        feature,
+        credits: Math.abs(l.amount),
+        time: hours === 0 ? "just now" : `${hours}h ago`,
+      };
+    });
+
+    return {
+      creditsRemaining: creditsRemaining._sum.aiCreditsBalance ?? 0,
+      creditsUsedToday: Math.abs(creditsUsedToday._sum.amount ?? 0),
+      creditsUsedMonth: Math.abs(creditsUsedMonth._sum.amount ?? 0),
+      analyticsEvents24h,
+      contentApiCalls24h,
+      recentAiUsage,
+      totalUsers,
+      totalMentions,
+    };
+  }),
+
   stats: adminProcedure.query(async ({ ctx }) => {
     const [
       totalUsers,

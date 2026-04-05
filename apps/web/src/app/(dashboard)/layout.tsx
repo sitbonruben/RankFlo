@@ -164,6 +164,119 @@ function ModeToggle({ mode, setMode }: { mode: AppMode; setMode: (m: AppMode) =>
   );
 }
 
+const ADMIN_EMAILS = ["sitbon.ruben@gmail.com"];
+
+function AdminApiButton() {
+  const { data: me } = trpc.user.me.useQuery();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const { data: usage } = trpc.admin.apiUsage.useQuery(undefined, {
+    enabled: !!me && ADMIN_EMAILS.includes(me.email),
+    refetchInterval: 30_000,
+  });
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  if (!me || !ADMIN_EMAILS.includes(me.email)) return null;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${open ? "bg-accent/10 text-accent" : "text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"}`}
+        title="API Usage (Admin)"
+      >
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5M9 11.25v1.5M12 9v3.75m3-6v6" />
+        </svg>
+      </button>
+
+      {open && usage && (
+        <div className="absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-950">
+          <div className="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-semibold text-gray-900 dark:text-white">API Usage — Admin</p>
+              <Link href="/admin" onClick={() => setOpen(false)} className="text-[10px] text-accent hover:underline">Full dashboard →</Link>
+            </div>
+          </div>
+          <div className="p-4 space-y-3">
+            {/* AI Credits */}
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-2">Credits</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-gray-50 p-2 dark:bg-gray-900">
+                  <p className="text-[10px] text-gray-500">Remaining</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{usage.creditsRemaining}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-2 dark:bg-gray-900">
+                  <p className="text-[10px] text-gray-500">Used today</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{usage.creditsUsedToday}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-2 dark:bg-gray-900">
+                  <p className="text-[10px] text-gray-500">This month</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{usage.creditsUsedMonth}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* API Calls */}
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-2">API calls (24h)</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg bg-gray-50 p-2 dark:bg-gray-900">
+                  <p className="text-[10px] text-gray-500">Analytics events</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{usage.analyticsEvents24h}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-2 dark:bg-gray-900">
+                  <p className="text-[10px] text-gray-500">Content API</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{usage.contentApiCalls24h}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent AI usage */}
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-500 mb-2">Recent AI usage</p>
+              <div className="space-y-1 max-h-32 overflow-y-auto">
+                {usage.recentAiUsage.length === 0 && (
+                  <p className="text-xs text-gray-400">No AI usage today</p>
+                )}
+                {usage.recentAiUsage.map((u: { id: string; feature: string; credits: number; time: string }) => (
+                  <div key={u.id} className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">{u.feature}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-red-400">-{u.credits}</span>
+                      <span className="text-gray-600 text-[10px]">{u.time}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Platform stats */}
+            <div className="border-t border-gray-100 pt-3 dark:border-gray-800">
+              <div className="flex justify-between text-xs">
+                <span className="text-gray-500">Total users</span>
+                <span className="font-medium text-gray-900 dark:text-white">{usage.totalUsers}</span>
+              </div>
+              <div className="flex justify-between text-xs mt-1">
+                <span className="text-gray-500">LLM mentions</span>
+                <span className="font-medium text-gray-900 dark:text-white">{usage.totalMentions}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function UserMenu() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -479,6 +592,7 @@ export default function DashboardLayout({
 
           {/* Right */}
           <div className="flex flex-1 items-center justify-end gap-2">
+            <AdminApiButton />
             <ThemeToggle />
             <NotificationBell />
           </div>
