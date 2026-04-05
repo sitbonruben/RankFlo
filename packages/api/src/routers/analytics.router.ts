@@ -185,7 +185,7 @@ export const analyticsRouter = router({
   postViews: orgProcedure
     .input(
       dateRangeSchema.extend({
-        slugs: z.array(z.string()).max(50),
+        slugs: z.array(z.string()).max(200),
       }),
     )
     .query(async ({ ctx, input }) => {
