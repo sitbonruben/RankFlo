@@ -163,7 +163,7 @@ export default function PostsPage() {
 
   const { data, isLoading, refetch } = trpc.post.list.useQuery({
     page: 1,
-    pageSize: 500,
+    pageSize: 100,
     sort: "newest",
     status: filter === "All" ? undefined : (filter as never),
   });
