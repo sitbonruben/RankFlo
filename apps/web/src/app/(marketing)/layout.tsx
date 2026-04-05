@@ -218,7 +218,7 @@ export default function MarketingLayout({
 
       {/* HelpZen support chat widget */}
       <Script
-        src="https://api.helpzen.io/api/v1/widget/script.js"
+        src="https://api.helpzen.io/api/v1/widget/script.js?v=2"
         data-workspace="helpzen"
         strategy="lazyOnload"
       />
