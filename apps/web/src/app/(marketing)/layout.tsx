@@ -115,64 +115,113 @@ function MarketingFooter() {
   return (
     <footer className="border-t border-gray-800/50 bg-black">
       <div className="mx-auto max-w-wide px-6 py-16">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
-          {[
-            {
-              title: "Product",
-              links: [
-                { href: "/pricing", label: "Pricing" },
-                { href: "/features", label: "Features" },
-                { href: "/blog", label: "Blog" },
-                { href: "/tools", label: "Free Tools" },
-                { href: "https://github.com/sitbonruben/RankFlo/releases", label: "Changelog", external: true },
-              ],
-            },
-            {
-              title: "Developers",
-              links: [
-                { href: "/docs/docs/getting-started", label: "Documentation", external: true },
-                { href: "/docs/docs/api-reference", label: "API Reference", external: true },
-                { href: "/docs/docs/self-hosting", label: "Self-hosting", external: true },
-                { href: "https://github.com/sitbonruben/RankFlo", label: "GitHub", external: true },
-              ],
-            },
-            {
-              title: "Company",
-              links: [
-                { href: "/about", label: "About" },
-                { href: "mailto:hello@rankflo.io", label: "Contact", external: true },
-              ],
-            },
-            {
-              title: "Legal",
-              links: [
-                { href: "/legal/privacy", label: "Privacy" },
-                { href: "/legal/terms", label: "Terms" },
-              ],
-            },
-          ].map((col) => (
-            <div key={col.title}>
-              <h3 className="mb-4 text-sm font-semibold text-white">{col.title}</h3>
-              <ul className="space-y-2 text-sm text-gray-500">
-                {col.links.map((l) =>
-                  l.external ? (
-                    <li key={l.label}><a href={l.href} target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">{l.label}</a></li>
-                  ) : (
-                    <li key={l.label}><Link href={l.href} className="hover:text-gray-300">{l.label}</Link></li>
-                  )
-                )}
-              </ul>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-6">
+          {/* Product */}
+          <div>
+            <h3 className="mb-4 text-sm font-semibold text-white">Product</h3>
+            <ul className="space-y-2.5 text-sm text-gray-500">
+              <li><Link href="/" className="hover:text-gray-300">Home</Link></li>
+              <li><Link href="/pricing" className="hover:text-gray-300">Pricing</Link></li>
+              <li><Link href="/blog" className="hover:text-gray-300">Blog</Link></li>
+              <li><Link href="/tools" className="hover:text-gray-300">Free Tools</Link></li>
+              <li><Link href="/about" className="hover:text-gray-300">About</Link></li>
+              <li><a href="https://github.com/sitbonruben/RankFlo/releases" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">Changelog</a></li>
+            </ul>
+          </div>
+
+          {/* Tools */}
+          <div>
+            <h3 className="mb-4 text-sm font-semibold text-white">Free Tools</h3>
+            <ul className="space-y-2.5 text-sm text-gray-500">
+              <li><Link href="/tools/blog-title-generator" className="hover:text-gray-300">Blog Title Generator</Link></li>
+              <li><Link href="/tools/schema-generator" className="hover:text-gray-300">Schema Generator</Link></li>
+              <li><Link href="/tools/keyword-density-checker" className="hover:text-gray-300">Keyword Density</Link></li>
+              <li><Link href="/tools/og-preview" className="hover:text-gray-300">OG Preview</Link></li>
+              <li><Link href="/tools/slug-generator" className="hover:text-gray-300">Slug Generator</Link></li>
+              <li><Link href="/tools/robots-txt-generator" className="hover:text-gray-300">Robots.txt Generator</Link></li>
+              <li><Link href="/tools/word-counter" className="hover:text-gray-300">Word Counter</Link></li>
+              <li><Link href="/tools/markdown-to-html" className="hover:text-gray-300">Markdown to HTML</Link></li>
+            </ul>
+          </div>
+
+          {/* Docs */}
+          <div>
+            <h3 className="mb-4 text-sm font-semibold text-white">Documentation</h3>
+            <ul className="space-y-2.5 text-sm text-gray-500">
+              <li><Link href="/docs/getting-started" className="hover:text-gray-300">Getting Started</Link></li>
+              <li><Link href="/docs/api-reference" className="hover:text-gray-300">API Reference</Link></li>
+              <li><Link href="/docs/self-hosting" className="hover:text-gray-300">Self-Hosting</Link></li>
+              <li><Link href="/docs/user-guide" className="hover:text-gray-300">User Guide</Link></li>
+              <li><Link href="/docs/webhooks" className="hover:text-gray-300">Webhooks</Link></li>
+              <li><Link href="/docs/analytics-setup" className="hover:text-gray-300">Analytics Setup</Link></li>
+              <li><Link href="/docs/llm-visibility" className="hover:text-gray-300">LLM Visibility</Link></li>
+            </ul>
+          </div>
+
+          {/* Comparisons */}
+          <div>
+            <h3 className="mb-4 text-sm font-semibold text-white">Compare</h3>
+            <ul className="space-y-2.5 text-sm text-gray-500">
+              <li><Link href="/blog/rankflo-vs-wordpress-developers" className="hover:text-gray-300">vs WordPress</Link></li>
+              <li><Link href="/blog/rankflo-vs-ghost-comparison" className="hover:text-gray-300">vs Ghost</Link></li>
+              <li><Link href="/blog/rankflo-vs-contentful-comparison" className="hover:text-gray-300">vs Contentful</Link></li>
+              <li><Link href="/blog/rankflo-vs-strapi-headless-cms" className="hover:text-gray-300">vs Strapi</Link></li>
+              <li><Link href="/blog/rankflo-vs-sanity-comparison" className="hover:text-gray-300">vs Sanity</Link></li>
+              <li><Link href="/blog/rankflo-vs-payload-cms" className="hover:text-gray-300">vs Payload</Link></li>
+              <li><Link href="/blog/rankflo-vs-medium" className="hover:text-gray-300">vs Medium</Link></li>
+            </ul>
+          </div>
+
+          {/* Resources */}
+          <div>
+            <h3 className="mb-4 text-sm font-semibold text-white">Resources</h3>
+            <ul className="space-y-2.5 text-sm text-gray-500">
+              <li><Link href="/blog/what-is-headless-cms-guide" className="hover:text-gray-300">What is Headless CMS?</Link></li>
+              <li><Link href="/blog/best-headless-cms-startups-2025" className="hover:text-gray-300">Best CMS for Startups</Link></li>
+              <li><Link href="/blog/ai-content-generation-seo-guide" className="hover:text-gray-300">AI Content & SEO</Link></li>
+              <li><Link href="/blog/llm-visibility-guide-ai-search-optimization" className="hover:text-gray-300">LLM Visibility Guide</Link></li>
+              <li><Link href="/blog/blog-seo-technical-checklist-2024" className="hover:text-gray-300">SEO Checklist</Link></li>
+              <li><Link href="/blog/what-is-llms-txt-guide" className="hover:text-gray-300">What is llms.txt?</Link></li>
+            </ul>
+          </div>
+
+          {/* Company & Legal */}
+          <div>
+            <h3 className="mb-4 text-sm font-semibold text-white">Company</h3>
+            <ul className="space-y-2.5 text-sm text-gray-500">
+              <li><a href="mailto:hello@rankflo.io" className="hover:text-gray-300">Contact</a></li>
+              <li><a href="https://github.com/sitbonruben/RankFlo" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300">GitHub</a></li>
+              <li><Link href="/feed.xml" className="hover:text-gray-300">RSS Feed</Link></li>
+              <li><Link href="/llms.txt" className="hover:text-gray-300">llms.txt</Link></li>
+            </ul>
+
+            <h3 className="mb-3 mt-6 text-sm font-semibold text-white">Legal</h3>
+            <ul className="space-y-2.5 text-sm text-gray-500">
+              <li><Link href="/legal/privacy" className="hover:text-gray-300">Privacy Policy</Link></li>
+              <li><Link href="/legal/terms" className="hover:text-gray-300">Terms of Service</Link></li>
+            </ul>
+          </div>
         </div>
 
-        <div className="mt-12 flex items-center justify-between border-t border-gray-800/50 pt-8">
-          <span className="text-sm text-gray-600">
-            &copy; {new Date().getFullYear()} RankFlo. Open source.
-          </span>
-          <a href="https://github.com/sitbonruben/RankFlo" target="_blank" rel="noopener noreferrer" className="text-gray-600 transition-colors hover:text-gray-400">
-            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-          </a>
+        {/* Bottom bar */}
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-gray-800/50 pt-8 sm:flex-row">
+          <div className="flex items-center gap-3">
+            <Logo size={20} />
+            <span className="text-sm text-gray-600">
+              &copy; {new Date().getFullYear()} RankFlo. Open source headless CMS.
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <a href="https://github.com/sitbonruben/RankFlo" target="_blank" rel="noopener noreferrer" className="text-gray-600 transition-colors hover:text-gray-400" aria-label="GitHub">
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            </a>
+            <a href="https://twitter.com/rankflo" target="_blank" rel="noopener noreferrer" className="text-gray-600 transition-colors hover:text-gray-400" aria-label="Twitter">
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            </a>
+            <a href="https://linkedin.com/company/rankflo" target="_blank" rel="noopener noreferrer" className="text-gray-600 transition-colors hover:text-gray-400" aria-label="LinkedIn">
+              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            </a>
+          </div>
         </div>
       </div>
     </footer>
