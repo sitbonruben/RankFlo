@@ -53,6 +53,7 @@ interface UploadFile {
   name: string;
   progress: number; // 0-100 or -1 = error
   done: boolean;
+  error?: string;
 }
 
 export default function MediaPage() {
@@ -86,6 +87,14 @@ export default function MediaPage() {
 
   async function uploadFile(file: File) {
     const id = Math.random().toString(36).slice(2);
+    // Check file size client-side before upload
+    const maxMb = 50;
+    if (file.size > maxMb * 1024 * 1024) {
+      setUploading((prev) => [...prev, { id, name: file.name, progress: -1, done: false, error: `File too large (${Math.round(file.size / 1024 / 1024)}MB). Max ${maxMb}MB. Try compressing or linking the video instead.` }]);
+      setTimeout(() => setUploading((prev) => prev.filter((u) => u.id !== id)), 6000);
+      return;
+    }
+
     setUploading((prev) => [...prev, { id, name: file.name, progress: 0, done: false }]);
 
     try {
@@ -133,8 +142,9 @@ export default function MediaPage() {
       setUploading((prev) => prev.map((u) => u.id === id ? { ...u, progress: 100, done: true } : u));
       setTimeout(() => setUploading((prev) => prev.filter((u) => u.id !== id)), 2000);
     } catch (err) {
-      setUploading((prev) => prev.map((u) => u.id === id ? { ...u, progress: -1 } : u));
-      setTimeout(() => setUploading((prev) => prev.filter((u) => u.id !== id)), 4000);
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      setUploading((prev) => prev.map((u) => u.id === id ? { ...u, progress: -1, error: msg } : u));
+      setTimeout(() => setUploading((prev) => prev.filter((u) => u.id !== id)), 6000);
     }
   }
 
@@ -241,7 +251,10 @@ export default function MediaPage() {
                 )}
               </div>
               {u.progress === -1 ? (
-                <span className="text-xs text-red-500">Failed</span>
+                <div className="text-right">
+                  <span className="text-xs text-red-500">Failed</span>
+                  {u.error && <p className="text-[11px] text-red-400 mt-0.5 max-w-[250px]">{u.error}</p>}
+                </div>
               ) : u.done ? (
                 <span className="text-xs text-green-500">Done</span>
               ) : (
