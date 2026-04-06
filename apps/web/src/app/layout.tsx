@@ -99,14 +99,20 @@ export default function RootLayout({
         </ThemeProvider>
         {/* Tracker is in (marketing)/layout.tsx only — not here, to avoid tracking dashboard navigation */}
 
-        {/* HelpZen support chat — available everywhere (marketing + dashboard) */}
+        {/* HelpZen support chat */}
         <Script
           src="https://api.helpzen.io/api/v1/widget/script.js?v=2"
           data-workspace="helpzen"
           data-color-dark="#39FF14"
           data-color-light="#16a34a"
-          strategy="lazyOnload"
+          strategy="beforeInteractive"
         />
+        <Script id="hz-init" strategy="afterInteractive">{`
+          (function check(){
+            if(window.Helpzen){window.Helpzen.init({workspace:"helpzen",colorDark:"#39FF14",colorLight:"#16a34a"})}
+            else{setTimeout(check,500)}
+          })()
+        `}</Script>
       </body>
     </html>
   );
