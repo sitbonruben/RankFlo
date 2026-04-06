@@ -202,18 +202,6 @@ export default function PostsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {postsWithoutImages.length > 0 && (
-            <button
-              onClick={() => setShowBulkModal(true)}
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-700 bg-gray-900 px-4 text-sm font-medium text-gray-300 transition-colors hover:border-accent/50 hover:text-white"
-              title={`${postsWithoutImages.length} posts missing featured images`}
-            >
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-              </svg>
-              Fill {postsWithoutImages.length} images
-            </button>
-          )}
           <Link
             href="/posts/new"
             className="inline-flex h-10 items-center gap-2 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-700 dark:bg-accent dark:text-black dark:hover:bg-accent-9"
