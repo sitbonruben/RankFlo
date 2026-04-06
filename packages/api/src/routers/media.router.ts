@@ -108,6 +108,69 @@ export const mediaRouter = router({
       });
     }),
 
+  replace: orgProcedure
+    .use(requirePermission("media:upload"))
+    .input(
+      z.object({
+        id: z.string().cuid(),
+        newUrl: z.string().url(),
+        fileName: z.string().optional(),
+        fileSize: z.number().optional(),
+        mimeType: z.string().optional(),
+        width: z.number().optional(),
+        height: z.number().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.media.findFirst({
+        where: { id: input.id, organizationId: ctx.organizationId },
+      });
+
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      const oldUrl = existing.url;
+
+      // Update the media record with the new file
+      const updated = await ctx.db.media.update({
+        where: { id: input.id },
+        data: {
+          url: input.newUrl,
+          ...(input.fileName && { fileName: input.fileName }),
+          ...(input.fileSize != null && { fileSize: input.fileSize }),
+          ...(input.mimeType && { mimeType: input.mimeType }),
+          ...(input.width != null && { width: input.width }),
+          ...(input.height != null && { height: input.height }),
+        },
+      });
+
+      // Update all posts in this org that use the old URL as featuredImage
+      const postsUpdated = await ctx.db.post.updateMany({
+        where: {
+          organizationId: ctx.organizationId,
+          featuredImage: oldUrl,
+          deletedAt: null,
+        },
+        data: { featuredImage: input.newUrl },
+      });
+
+      return { media: updated, postsUpdated: postsUpdated.count };
+    }),
+
+  usageCount: orgProcedure
+    .input(z.object({ url: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const count = await ctx.db.post.count({
+        where: {
+          organizationId: ctx.organizationId,
+          featuredImage: input.url,
+          deletedAt: null,
+        },
+      });
+      return { count };
+    }),
+
   delete: orgProcedure
     .use(requirePermission("media:delete"))
     .input(z.object({ id: z.string().cuid() }))

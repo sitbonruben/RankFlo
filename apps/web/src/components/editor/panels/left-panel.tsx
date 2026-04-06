@@ -25,6 +25,22 @@ interface ToolItem {
 
 const TOOLS: ToolItem[] = [
   {
+    id: "ai-chat",
+    label: "AI Chat",
+    position: "top",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path
+          d="M10 3l1.8 3.6L16 7.4l-3 2.6.7 4L10 12.2 6.3 14l.7-4-3-2.6 4.2-.8L10 3z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+        <circle cx="10" cy="10" r="1" fill="currentColor" opacity="0.4" />
+      </svg>
+    ),
+  },
+  {
     id: "blocks",
     label: "Blocks",
     position: "top",
@@ -136,22 +152,6 @@ const TOOLS: ToolItem[] = [
       </svg>
     ),
   },
-  {
-    id: "ai-chat",
-    label: "AI Chat",
-    position: "bottom",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path
-          d="M10 3l1.8 3.6L16 7.4l-3 2.6.7 4L10 12.2 6.3 14l.7-4-3-2.6 4.2-.8L10 3z"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
-        <circle cx="10" cy="10" r="1" fill="currentColor" opacity="0.4" />
-      </svg>
-    ),
-  },
 ];
 
 // ─── Panel Content ──────────────────────────────────────
@@ -220,7 +220,7 @@ function ToolbarButton({
 
 // ─── Left Panel ─────────────────────────────────────────
 export function LeftPanel() {
-  const [activePanel, setActivePanel] = React.useState<PanelId | null>(null);
+  const [activePanel, setActivePanel] = React.useState<PanelId | null>("ai-chat");
 
   const togglePanel = React.useCallback(
     (id: PanelId) => {

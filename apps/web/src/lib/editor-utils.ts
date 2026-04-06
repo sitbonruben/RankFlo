@@ -187,7 +187,15 @@ function blockToHtml(block: EditorBlock): string {
       return `<nav class="toc"><p><em>Table of Contents</em></p></nav>`;
     case "newsletter-cta": {
       const p = block.props as BlockPropsMap["newsletter-cta"];
-      return `<aside class="newsletter-cta"><h3>${esc(p.title)}</h3><p>${esc(p.description)}</p></aside>`;
+      const formId = `rf-sub-${block.id}`;
+      return `<aside class="newsletter-cta" style="background:#111;border:1px solid #222;border-radius:12px;padding:32px;text-align:center;margin:24px 0;">
+  <h3 style="color:#fff;margin:0 0 8px;">${esc(p.title)}</h3>
+  <p style="color:#999;margin:0 0 16px;font-size:14px;">${esc(p.description)}</p>
+  <form id="${formId}" data-rankflo-subscribe style="display:flex;gap:8px;max-width:400px;margin:0 auto;" onsubmit="return(async function(e){e.preventDefault();var f=e.target,em=f.querySelector('input[type=email]'),btn=f.querySelector('button'),pk=document.querySelector('meta[name=rankflo-project-key]');if(!pk||!pk.content){btn.textContent='Missing project key';return false}btn.disabled=true;btn.textContent='Subscribing...';try{var r=await fetch('https://rankflo.io/api/v1/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em.value,project_key:pk.content,source:'newsletter-cta'})});if(r.ok){f.innerHTML='<p style=\\'color:#39FF14;font-size:14px;\\'>✓ Subscribed!</p>'}else{var d=await r.json();btn.textContent=d.error||'Error';btn.disabled=false}}catch(x){btn.textContent='Error';btn.disabled=false}return false})(event)">
+    <input type="email" required placeholder="${esc(p.placeholder)}" style="flex:1;padding:10px 14px;border-radius:8px;border:1px solid #333;background:#1a1a1a;color:#fff;font-size:14px;" />
+    <button type="submit" style="padding:10px 20px;border-radius:8px;border:none;background:#39FF14;color:#000;font-weight:600;font-size:14px;cursor:pointer;">${esc(p.buttonText)}</button>
+  </form>
+</aside>`;
     }
     case "author-bio": {
       const p = block.props as BlockPropsMap["author-bio"];

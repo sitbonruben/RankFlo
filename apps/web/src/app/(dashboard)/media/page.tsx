@@ -52,6 +52,321 @@ function FileIcon({ mimeType, url }: { mimeType: string; url: string }) {
   );
 }
 
+type ReplaceMode = "upload" | "url" | "ai" | null;
+
+function MediaEditModal({
+  media,
+  onClose,
+  onReplaced,
+  onCopyUrl,
+  onDelete,
+}: {
+  media: { id: string; url: string; mimeType: string; fileName: string; fileSize: number; width?: number | null; height?: number | null };
+  onClose: () => void;
+  onReplaced: () => void;
+  onCopyUrl: (url: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [replaceMode, setReplaceMode] = useState<ReplaceMode>(null);
+  const [pasteUrl, setPasteUrl] = useState("");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const replaceInput = useRef<HTMLInputElement>(null);
+
+  const usageQ = trpc.media.usageCount.useQuery({ url: media.url });
+  const replaceMedia = trpc.media.replace.useMutation();
+  const createMedia = trpc.media.create.useMutation();
+  const generateImage = trpc.ai.generateImage.useMutation();
+
+  const usageCount = usageQ.data?.count ?? 0;
+
+  async function handleUploadReplace(file: File) {
+    setError(null);
+    if (file.size > 50 * 1024 * 1024) {
+      setError("File too large (max 50 MB)");
+      return;
+    }
+    setUploading(true);
+    try {
+      const res = await fetch("/api/media/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileName: file.name, mimeType: file.type, fileSize: file.size }),
+      });
+      if (!res.ok) {
+        const err = await res.json() as { error: string };
+        throw new Error(err.error ?? "Upload failed");
+      }
+      const { presignedUrl, publicUrl } = await res.json() as { presignedUrl: string; publicUrl: string };
+
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.addEventListener("load", () => xhr.status < 300 ? resolve() : reject(new Error(`S3 error ${xhr.status}`)));
+        xhr.addEventListener("error", () => reject(new Error("Network error")));
+        xhr.open("PUT", presignedUrl);
+        xhr.setRequestHeader("Content-Type", file.type);
+        xhr.send(file);
+      });
+
+      const dims = file.type.startsWith("image/") ? await getImgDims(publicUrl) : null;
+      await replaceMedia.mutateAsync({
+        id: media.id,
+        newUrl: publicUrl,
+        fileName: file.name,
+        fileSize: file.size,
+        mimeType: file.type,
+        width: dims?.width,
+        height: dims?.height,
+      });
+      onReplaced();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleUrlReplace() {
+    if (!pasteUrl.trim()) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const dims = await getImgDims(pasteUrl).catch(() => null);
+      await replaceMedia.mutateAsync({
+        id: media.id,
+        newUrl: pasteUrl.trim(),
+        width: dims?.width,
+        height: dims?.height,
+      });
+      onReplaced();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Replace failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleAiGenerate() {
+    if (!aiPrompt.trim()) return;
+    setError(null);
+    setGenerating(true);
+    try {
+      const { url } = await generateImage.mutateAsync({ prompt: aiPrompt, aspectRatio: "16:9" });
+      await replaceMedia.mutateAsync({ id: media.id, newUrl: url });
+      onReplaced();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed");
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function getImgDims(url: string): Promise<{ width: number; height: number }> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => reject(new Error("Could not load image"));
+      img.src = url;
+    });
+  }
+
+  const busy = uploading || generating;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={onClose}>
+      <div className="relative flex w-full max-w-3xl max-h-[90vh] overflow-hidden rounded-2xl border border-gray-800 bg-gray-950 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        {/* Left: Preview */}
+        <div className="flex-1 min-w-0 flex flex-col items-center justify-center bg-black/40 p-6">
+          {media.mimeType.startsWith("video/") ? (
+            <video src={media.url} controls className="max-h-[60vh] max-w-full rounded-lg" />
+          ) : media.mimeType.startsWith("image/") ? (
+            <img src={media.url} alt={media.fileName} className="max-h-[60vh] max-w-full rounded-lg object-contain" />
+          ) : (
+            <div className="flex h-48 w-full items-center justify-center rounded-lg bg-gray-900 text-gray-500">
+              Preview not available
+            </div>
+          )}
+        </div>
+
+        {/* Right: Details + Actions */}
+        <div className="w-80 flex-shrink-0 flex flex-col border-l border-gray-800 overflow-y-auto">
+          {/* Header */}
+          <div className="flex items-start justify-between p-5 pb-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-white">{media.fileName}</p>
+              <p className="mt-0.5 text-xs text-gray-500">
+                {formatBytes(media.fileSize)}
+                {media.width && media.height ? ` · ${media.width}×${media.height}` : ""}
+              </p>
+            </div>
+            <button onClick={onClose} className="ml-2 flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-800 hover:text-white">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+
+          {/* Usage info */}
+          {usageQ.data && usageCount > 0 && (
+            <div className="mx-5 mb-3 flex items-center gap-2 rounded-lg bg-blue-950/30 border border-blue-800/30 px-3 py-2">
+              <svg className="h-3.5 w-3.5 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.193-9.193a4.5 4.5 0 00-6.364 0l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+              <span className="text-xs text-blue-300">Used as featured image in {usageCount} post{usageCount !== 1 ? "s" : ""}</span>
+            </div>
+          )}
+
+          {/* Quick actions */}
+          <div className="px-5 space-y-2">
+            <button
+              onClick={() => onCopyUrl(media.url)}
+              className="flex w-full items-center gap-2 rounded-lg border border-gray-800 px-3 py-2 text-xs text-gray-300 hover:bg-gray-900 hover:text-white transition-colors"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.193-9.193a4.5 4.5 0 00-6.364 0l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+              Copy URL
+            </button>
+          </div>
+
+          {/* Replace section */}
+          <div className="mt-4 px-5">
+            <p className="text-xs font-medium uppercase tracking-wider text-gray-500 mb-2">Replace image</p>
+
+            {!replaceMode && (
+              <div className="space-y-1.5">
+                <button
+                  onClick={() => { setReplaceMode("upload"); setTimeout(() => replaceInput.current?.click(), 100); }}
+                  className="flex w-full items-center gap-2 rounded-lg border border-gray-800 px-3 py-2 text-xs text-gray-300 hover:bg-gray-900 hover:text-white transition-colors"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+                  Upload new file
+                </button>
+                <button
+                  onClick={() => setReplaceMode("url")}
+                  className="flex w-full items-center gap-2 rounded-lg border border-gray-800 px-3 py-2 text-xs text-gray-300 hover:bg-gray-900 hover:text-white transition-colors"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.193-9.193a4.5 4.5 0 00-6.364 0l-4.5 4.5a4.5 4.5 0 001.242 7.244" /></svg>
+                  Paste URL
+                </button>
+                <button
+                  onClick={() => setReplaceMode("ai")}
+                  className="flex w-full items-center gap-2 rounded-lg border border-gray-800 px-3 py-2 text-xs text-gray-300 hover:bg-gray-900 hover:text-white transition-colors"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+                  Generate with AI
+                </button>
+              </div>
+            )}
+
+            <input
+              ref={replaceInput}
+              type="file"
+              accept="image/*,video/mp4,video/webm"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void handleUploadReplace(f);
+                e.target.value = "";
+              }}
+            />
+
+            {/* URL mode */}
+            {replaceMode === "url" && (
+              <div className="space-y-2">
+                <input
+                  type="url"
+                  value={pasteUrl}
+                  onChange={(e) => setPasteUrl(e.target.value)}
+                  placeholder="https://example.com/image.png"
+                  className="w-full rounded-lg border border-gray-800 bg-gray-900 px-3 py-2 text-xs text-white placeholder-gray-600 focus:border-accent focus:outline-none"
+                  autoFocus
+                  onKeyDown={(e) => { if (e.key === "Enter") void handleUrlReplace(); }}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setReplaceMode(null); setPasteUrl(""); setError(null); }}
+                    className="flex-1 rounded-lg border border-gray-800 px-3 py-1.5 text-xs text-gray-400 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => void handleUrlReplace()}
+                    disabled={busy || !pasteUrl.trim()}
+                    className="flex-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-black hover:bg-accent-9 disabled:opacity-50"
+                  >
+                    {uploading ? "Replacing…" : "Replace"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* AI mode */}
+            {replaceMode === "ai" && (
+              <div className="space-y-2">
+                <textarea
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  placeholder="Describe the image you want…"
+                  rows={3}
+                  className="w-full rounded-lg border border-gray-800 bg-gray-900 px-3 py-2 text-xs text-white placeholder-gray-600 focus:border-accent focus:outline-none resize-none"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setReplaceMode(null); setAiPrompt(""); setError(null); }}
+                    className="flex-1 rounded-lg border border-gray-800 px-3 py-1.5 text-xs text-gray-400 hover:text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => void handleAiGenerate()}
+                    disabled={busy || !aiPrompt.trim()}
+                    className="flex-1 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-black hover:bg-accent-9 disabled:opacity-50"
+                  >
+                    {generating ? "Generating…" : "Generate & Replace"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Upload mode feedback */}
+            {replaceMode === "upload" && uploading && (
+              <div className="flex items-center gap-2 rounded-lg border border-gray-800 px-3 py-2">
+                <div className="h-3 w-3 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                <span className="text-xs text-gray-300">Uploading…</span>
+              </div>
+            )}
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="mx-5 mt-3 rounded-lg bg-red-950/30 border border-red-800/30 px-3 py-2">
+              <p className="text-xs text-red-400">{error}</p>
+            </div>
+          )}
+
+          {/* Usage warning for replace */}
+          {replaceMode && usageCount > 0 && (
+            <div className="mx-5 mt-2 rounded-lg bg-yellow-950/30 border border-yellow-800/30 px-3 py-2">
+              <p className="text-xs text-yellow-400">
+                Replacing will auto-update the featured image in {usageCount} post{usageCount !== 1 ? "s" : ""}
+              </p>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="mt-auto border-t border-gray-800 px-5 py-3">
+            <button
+              onClick={() => onDelete(media.id)}
+              className="flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs text-red-400 hover:bg-red-950/30 transition-colors"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface UploadFile {
   id: string;
   name: string;
@@ -67,7 +382,7 @@ export default function MediaPage() {
   const [page, setPage] = useState(1);
   const [uploading, setUploading] = useState<UploadFile[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ url: string; mimeType: string; fileName: string } | null>(null);
+  const [editMedia, setEditMedia] = useState<{ id: string; url: string; mimeType: string; fileName: string; fileSize: number; width?: number | null; height?: number | null } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -302,7 +617,7 @@ export default function MediaPage() {
           {isLoading ? Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="aspect-video animate-pulse rounded-xl bg-gray-100 dark:bg-gray-900" />
           )) : items.map((file) => (
-            <div key={file.id} className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white transition-all hover:border-green-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:hover:border-accent/50 cursor-pointer" onClick={() => setPreview({ url: file.url, mimeType: file.mimeType, fileName: file.fileName })}>
+            <div key={file.id} className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white transition-all hover:border-green-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:hover:border-accent/50 cursor-pointer" onClick={() => setEditMedia({ id: file.id, url: file.url, mimeType: file.mimeType, fileName: file.fileName, fileSize: file.fileSize, width: file.width, height: file.height })}>
               <div className="aspect-video overflow-hidden">
                 <FileIcon mimeType={file.mimeType} url={file.url} />
               </div>
@@ -410,28 +725,15 @@ export default function MediaPage() {
         </div>
       )}
 
-      {/* Preview modal */}
-      {preview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setPreview(null)}>
-          <div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setPreview(null)} className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-gray-900 text-white shadow-lg hover:bg-gray-800">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-            {preview.mimeType.startsWith("video/") ? (
-              <video src={preview.url} controls autoPlay className="max-h-[85vh] max-w-[85vw] rounded-xl" />
-            ) : preview.mimeType.startsWith("image/") ? (
-              <img src={preview.url} alt={preview.fileName} className="max-h-[85vh] max-w-[85vw] rounded-xl object-contain" />
-            ) : (
-              <div className="flex h-64 w-96 items-center justify-center rounded-xl bg-gray-900 text-gray-400">
-                <p>Preview not available</p>
-              </div>
-            )}
-            <div className="mt-3 flex items-center justify-between">
-              <p className="text-sm text-gray-300">{preview.fileName}</p>
-              <button onClick={() => navigator.clipboard.writeText(preview.url)} className="text-xs text-accent hover:underline">Copy URL</button>
-            </div>
-          </div>
-        </div>
+      {/* Edit media modal */}
+      {editMedia && (
+        <MediaEditModal
+          media={editMedia}
+          onClose={() => setEditMedia(null)}
+          onReplaced={() => { utils.media.list.invalidate(); setEditMedia(null); }}
+          onCopyUrl={copyUrl}
+          onDelete={(id) => { setEditMedia(null); setConfirmDelete(id); }}
+        />
       )}
     </div>
   );

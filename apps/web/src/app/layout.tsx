@@ -103,6 +103,8 @@ export default function RootLayout({
         <Script
           src="https://api.helpzen.io/api/v1/widget/script.js?v=2"
           data-workspace="helpzen"
+          data-color-dark="#39FF14"
+          data-color-light="#16a34a"
           strategy="lazyOnload"
         />
       </body>
