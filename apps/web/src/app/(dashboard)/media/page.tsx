@@ -15,11 +15,15 @@ function FileIcon({ mimeType, url }: { mimeType: string; url: string }) {
   }
   if (mimeType.startsWith("video/")) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-purple-50 dark:bg-purple-900/20">
-        <svg className="h-8 w-8 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.91 11.672a.375.375 0 010 .656l-5.603 3.113a.375.375 0 01-.557-.328V8.887c0-.286.307-.466.557-.327l5.603 3.112z" />
-        </svg>
+      <div className="relative h-full w-full bg-black">
+        <video src={url} className="h-full w-full object-cover" muted preload="metadata" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-black/60 backdrop-blur-sm">
+            <svg className="h-4 w-4 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+        </div>
       </div>
     );
   }
@@ -63,6 +67,7 @@ export default function MediaPage() {
   const [page, setPage] = useState(1);
   const [uploading, setUploading] = useState<UploadFile[]>([]);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; mimeType: string; fileName: string } | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -297,7 +302,7 @@ export default function MediaPage() {
           {isLoading ? Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="aspect-video animate-pulse rounded-xl bg-gray-100 dark:bg-gray-900" />
           )) : items.map((file) => (
-            <div key={file.id} className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white transition-all hover:border-green-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:hover:border-accent/50">
+            <div key={file.id} className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white transition-all hover:border-green-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:hover:border-accent/50 cursor-pointer" onClick={() => setPreview({ url: file.url, mimeType: file.mimeType, fileName: file.fileName })}>
               <div className="aspect-video overflow-hidden">
                 <FileIcon mimeType={file.mimeType} url={file.url} />
               </div>
@@ -401,6 +406,30 @@ export default function MediaPage() {
           <div className="flex gap-2">
             <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm disabled:opacity-40 dark:border-gray-800">Previous</button>
             <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm disabled:opacity-40 dark:border-gray-800">Next</button>
+          </div>
+        </div>
+      )}
+
+      {/* Preview modal */}
+      {preview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={() => setPreview(null)}>
+          <div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPreview(null)} className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-gray-900 text-white shadow-lg hover:bg-gray-800">
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            {preview.mimeType.startsWith("video/") ? (
+              <video src={preview.url} controls autoPlay className="max-h-[85vh] max-w-[85vw] rounded-xl" />
+            ) : preview.mimeType.startsWith("image/") ? (
+              <img src={preview.url} alt={preview.fileName} className="max-h-[85vh] max-w-[85vw] rounded-xl object-contain" />
+            ) : (
+              <div className="flex h-64 w-96 items-center justify-center rounded-xl bg-gray-900 text-gray-400">
+                <p>Preview not available</p>
+              </div>
+            )}
+            <div className="mt-3 flex items-center justify-between">
+              <p className="text-sm text-gray-300">{preview.fileName}</p>
+              <button onClick={() => navigator.clipboard.writeText(preview.url)} className="text-xs text-accent hover:underline">Copy URL</button>
+            </div>
           </div>
         </div>
       )}
