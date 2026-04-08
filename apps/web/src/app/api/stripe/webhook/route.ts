@@ -194,7 +194,27 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
     return;
   }
 
-  await db.organization.update({ where: { id: orgId }, data: { plan: "FREE" } });
+  // Set data retention warning (60 days) and deletion date (90 days)
+  const warningDate = new Date();
+  warningDate.setDate(warningDate.getDate() + 60);
+  const deleteDate = new Date();
+  deleteDate.setDate(deleteDate.getDate() + 90);
+
+  const existing = await db.organization.findUnique({ where: { id: orgId }, select: { settings: true } });
+  const existingSettings = (existing?.settings as Record<string, unknown>) ?? {};
+
+  await db.organization.update({
+    where: { id: orgId },
+    data: {
+      plan: "FREE",
+      settings: {
+        ...existingSettings,
+        dataRetentionWarningAt: warningDate.toISOString(),
+        dataDeleteAt: deleteDate.toISOString(),
+        cancelledAt: new Date().toISOString(),
+      },
+    },
+  });
   await db.subscription.updateMany({ where: { organizationId: orgId }, data: { status: "CANCELED" } });
 }
 

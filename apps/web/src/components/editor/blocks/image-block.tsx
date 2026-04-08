@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { ImageBlockProps } from "@rankflo/core/types";
 import { useEditorStore } from "@/stores/editor-store";
 import { trpc } from "@/trpc/client";
+import { ImagePickerModal } from "@/components/image-picker-modal";
 
 // ─── Props ──────────────────────────────────────────────
 interface ImageBlockComponentProps {
@@ -40,10 +41,27 @@ function SparkleIcon() {
 // ─── Image Placeholder ──────────────────────────────────
 function ImagePlaceholder({ id, props }: ImageBlockComponentProps) {
   const updateBlock = useEditorStore((s) => s.updateBlock);
+  const title = useEditorStore((s) => s.title);
 
-  const [mode, setMode] = useState<"pick" | "url" | "ai">("pick");
+  const [mode, setMode] = useState<"pick" | "url" | "ai" | "search">("pick");
   const [urlInput, setUrlInput] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
+
+  // Auto-suggest images based on post title
+  const searchTerm = useMemo(() => {
+    if (!title) return "technology";
+    // Extract key words from title, skip common words
+    const skip = new Set(["how","to","the","a","an","in","for","and","or","of","is","it","that","this","your","you","with","from","what","why","when","where","which","on","at","by","be","as","are","was","were","will","can","do","not","no","vs","best","top","guide","complete","ultimate","2024","2025","2026"]);
+    const words = title.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !skip.has(w)).slice(0, 3);
+    return words.join(" ") || "technology";
+  }, [title]);
+
+  const suggestionsQ = trpc.ai.searchImages.useQuery(
+    { query: searchTerm, page: 1 },
+    { staleTime: 60_000 },
+  );
+  const suggestions = suggestionsQ.data?.images ?? [];
 
   const generateImage = trpc.ai.generateImage.useMutation({
     onSuccess: (data) => {
@@ -54,10 +72,45 @@ function ImagePlaceholder({ id, props }: ImageBlockComponentProps) {
   if (mode === "pick") {
     return (
       <div className="px-4 py-3">
-        <div className="flex flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed border-gray-700 bg-gray-950 py-10">
-          <CameraIcon />
-          <p className="text-sm text-gray-500">Add an image</p>
+        <div className="flex flex-col items-center gap-3 rounded-lg border-2 border-dashed border-gray-700 bg-gray-950 py-6 px-4">
+          {/* Suggested images grid */}
+          {suggestions.length > 0 ? (
+            <>
+              <p className="text-xs text-gray-500">Suggested free images</p>
+              <div className="grid grid-cols-4 gap-2 w-full">
+                {suggestions.slice(0, 8).map((img) => (
+                  <button
+                    key={img.id}
+                    type="button"
+                    onClick={() => updateBlock(id, { src: img.url, alt: img.alt || searchTerm })}
+                    className="group relative aspect-video overflow-hidden rounded-lg border border-gray-800 hover:border-accent transition-all"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={img.thumbUrl} alt={img.alt} className="h-full w-full object-cover transition-transform group-hover:scale-105" loading="lazy" />
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-600">Free from <a href="https://pexels.com" target="_blank" rel="noopener noreferrer" className="underline">Pexels</a></p>
+            </>
+          ) : suggestionsQ.isLoading ? (
+            <div className="grid grid-cols-4 gap-2 w-full">
+              {[1,2,3,4].map(i => <div key={i} className="aspect-video animate-pulse rounded-lg bg-gray-900" />)}
+            </div>
+          ) : (
+            <>
+              <CameraIcon />
+              <p className="text-sm text-gray-500">Add an image</p>
+            </>
+          )}
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowPicker(true)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-gray-700 bg-gray-900 px-3 text-xs font-medium text-gray-300 transition-colors hover:border-gray-600 hover:text-white"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+              Search more
+            </button>
             <button
               type="button"
               onClick={() => setMode("url")}
@@ -74,6 +127,13 @@ function ImagePlaceholder({ id, props }: ImageBlockComponentProps) {
               Generate with AI
             </button>
           </div>
+          {showPicker && (
+            <ImagePickerModal
+              defaultTab="search"
+              onSelect={(url) => { updateBlock(id, { src: url }); setShowPicker(false); }}
+              onClose={() => setShowPicker(false)}
+            />
+          )}
         </div>
       </div>
     );

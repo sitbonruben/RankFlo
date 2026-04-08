@@ -159,6 +159,7 @@ function BulkImageModal({
 
 export default function PostsPage() {
   const [filter, setFilter] = useState<StatusFilter>("PUBLISHED");
+  const [view, setView] = useState<"list" | "grid">("grid");
   const [showBulkModal, setShowBulkModal] = useState(false);
 
   const { data, isLoading, refetch } = trpc.post.list.useQuery({
@@ -202,6 +203,17 @@ export default function PostsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {postsWithoutImages.length > 0 && (
+            <button
+              onClick={() => setShowBulkModal(true)}
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-200 px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-900"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+              </svg>
+              Fill {postsWithoutImages.length} images
+            </button>
+          )}
           <Link
             href="/posts/new"
             className="inline-flex h-10 items-center gap-2 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-700 dark:bg-accent dark:text-black dark:hover:bg-accent-9"
@@ -214,56 +226,141 @@ export default function PostsPage() {
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {(["All", "PUBLISHED", "DRAFT", "REVIEW", "SCHEDULED", "ARCHIVED"] as StatusFilter[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
-              filter === f
-                ? "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white"
-                : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
-            }`}
-          >
-            {f === "All" ? "All" : STATUS_LABELS[f]}
+      {/* Filters + View toggle */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {(["All", "PUBLISHED", "DRAFT", "REVIEW", "SCHEDULED", "ARCHIVED"] as StatusFilter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`rounded-lg px-3 py-1.5 text-sm transition-colors ${
+                filter === f
+                  ? "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white"
+                  : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              }`}
+            >
+              {f === "All" ? "All" : STATUS_LABELS[f]}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setView("grid")} className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${view === "grid" ? "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white" : "text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"}`}>
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" /></svg>
           </button>
-        ))}
+          <button onClick={() => setView("list")} className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${view === "list" ? "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white" : "text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"}`}>
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg>
+          </button>
+        </div>
       </div>
 
-      {/* Posts table */}
-      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden dark:border-gray-800 dark:bg-gray-950">
-        {isLoading ? (
-          <div className="divide-y divide-gray-100 dark:divide-gray-800/50">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-4 px-5 py-4">
-                <div className="h-4 w-64 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
-                <div className="h-4 w-20 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
-                <div className="h-4 w-24 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+      {/* Posts */}
+      {isLoading ? (
+        view === "grid" ? (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <div key={i} className="animate-pulse rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+                <div className="aspect-video bg-gray-100 dark:bg-gray-900 rounded-t-xl" />
+                <div className="p-3 space-y-2">
+                  <div className="h-4 w-3/4 rounded bg-gray-100 dark:bg-gray-800" />
+                  <div className="h-3 w-1/2 rounded bg-gray-100 dark:bg-gray-800" />
+                </div>
               </div>
             ))}
           </div>
-        ) : posts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-900">
-              <svg className="h-6 w-6 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-              </svg>
-            </div>
-            <h3 className="mt-4 text-sm font-medium text-gray-900 dark:text-white">No posts yet</h3>
-            <p className="mt-1 text-xs text-gray-500 dark:text-gray-600">
-              {filter !== "All" ? `No ${STATUS_LABELS[filter]?.toLowerCase()} posts` : "Create your first post to get started"}
-            </p>
-            {filter === "All" && (
-              <Link
-                href="/posts/new"
-                className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-700 dark:bg-accent dark:text-black dark:hover:bg-accent-9"
-              >
-                Create first post
-              </Link>
-            )}
-          </div>
         ) : (
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden dark:border-gray-800 dark:bg-gray-950">
+            <div className="divide-y divide-gray-100 dark:divide-gray-800/50">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center gap-4 px-5 py-4">
+                  <div className="h-4 w-64 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+                  <div className="h-4 w-20 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      ) : posts.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-100 dark:bg-gray-900">
+            <svg className="h-6 w-6 text-gray-400 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+          </div>
+          <h3 className="mt-4 text-sm font-medium text-gray-900 dark:text-white">No posts yet</h3>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-600">
+            {filter !== "All" ? `No ${STATUS_LABELS[filter]?.toLowerCase()} posts` : "Create your first post to get started"}
+          </p>
+          {filter === "All" && (
+            <Link href="/posts/new" className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg bg-green-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-green-700 dark:bg-accent dark:text-black dark:hover:bg-accent-9">
+              Create first post
+            </Link>
+          )}
+        </div>
+      ) : view === "grid" ? (
+        /* ─── Grid View ─── */
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {posts.map((post) => {
+            const views = viewsMap[post.slug];
+            const proj = (post as { project?: { id: string; name: string } | null }).project;
+            return (
+              <Link
+                key={post.id}
+                href={`/posts/${post.slug}/edit`}
+                className="group overflow-hidden rounded-xl border border-gray-200 bg-white transition-all hover:border-green-300 hover:shadow-sm dark:border-gray-800 dark:bg-gray-950 dark:hover:border-accent/50"
+              >
+                {/* Image */}
+                <div className="aspect-video overflow-hidden bg-gray-100 dark:bg-gray-900">
+                  {post.featuredImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={post.featuredImage} alt="" className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center">
+                      <svg className="h-8 w-8 text-gray-300 dark:text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                {/* Content */}
+                <div className="p-3">
+                  <h3 className="text-sm font-medium text-gray-900 dark:text-white line-clamp-2 group-hover:text-green-600 dark:group-hover:text-accent">
+                    {post.title || "Untitled"}
+                  </h3>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
+                        post.status === "PUBLISHED"
+                          ? "bg-green-50 text-green-700 dark:bg-accent-1 dark:text-accent"
+                          : post.status === "SCHEDULED"
+                          ? "bg-blue-50 text-blue-700 dark:bg-blue-400/10 dark:text-blue-400"
+                          : "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                      }`}
+                    >
+                      <span className={`h-1 w-1 rounded-full ${
+                        post.status === "PUBLISHED" ? "bg-green-500 dark:bg-accent"
+                        : post.status === "SCHEDULED" ? "bg-blue-400"
+                        : "bg-gray-400"
+                      }`} />
+                      {STATUS_LABELS[post.status] ?? post.status}
+                    </span>
+                    {views != null && views > 0 && (
+                      <span className="text-[10px] tabular-nums text-gray-400">{views.toLocaleString()} views</span>
+                    )}
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between">
+                    {proj && (
+                      <span className="text-[10px] text-gray-400 dark:text-gray-600">{proj.name}</span>
+                    )}
+                    <span className="text-[10px] text-gray-400 dark:text-gray-600">{timeAgo(post.updatedAt)}</span>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      ) : (
+        /* ─── List View ─── */
+        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden dark:border-gray-800 dark:bg-gray-950">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800">
@@ -303,12 +400,6 @@ export default function PostsPage() {
                             <p className="text-xs text-gray-400 dark:text-gray-600">/{post.slug}</p>
                             {(post as { project?: { id: string; name: string } | null }).project ? (
                               <span className="inline-flex items-center gap-1 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-gray-800 dark:text-gray-400">
-                                <svg width="8" height="8" viewBox="0 0 16 16" fill="none">
-                                  <rect x="2" y="2" width="5" height="5" rx="1" fill="currentColor" />
-                                  <rect x="9" y="2" width="5" height="5" rx="1" fill="currentColor" />
-                                  <rect x="2" y="9" width="5" height="5" rx="1" fill="currentColor" />
-                                  <rect x="9" y="9" width="5" height="5" rx="1" fill="currentColor" opacity="0.4" />
-                                </svg>
                                 {(post as { project?: { id: string; name: string } | null }).project!.name}
                               </span>
                             ) : (
@@ -360,8 +451,8 @@ export default function PostsPage() {
               })}
             </tbody>
           </table>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

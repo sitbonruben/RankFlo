@@ -36,6 +36,7 @@ interface EditorState {
   hoveredBlockId: string | null;
   isDirty: boolean;
   isSaving: boolean;
+  isAiWriting: boolean;
   lastSavedAt: Date | null;
   rightPanelOpen: boolean;
 
@@ -53,6 +54,7 @@ interface EditorState {
   setPostId: (id: string) => void;
   setProjectId: (id: string | null) => void;
   setIsSaving: (saving: boolean) => void;
+  setIsAiWriting: (writing: boolean) => void;
   setLastSavedAt: (date: Date) => void;
   markClean: () => void;
   setRightPanelOpen: (open: boolean) => void;
@@ -110,6 +112,7 @@ const initialState = {
   hoveredBlockId: null,
   isDirty: false,
   isSaving: false,
+  isAiWriting: false,
   lastSavedAt: null,
   rightPanelOpen: true,
 };
@@ -134,6 +137,7 @@ export const useEditorStore = create<EditorState>()(
       setPostId: (id) => set({ postId: id }),
       setProjectId: (id) => set({ projectId: id }),
       setIsSaving: (saving) => set({ isSaving: saving }),
+      setIsAiWriting: (writing) => set({ isAiWriting: writing }),
       setLastSavedAt: (date) => set({ lastSavedAt: date }),
       markClean: () => set({ isDirty: false }),
       setRightPanelOpen: (open) => set({ rightPanelOpen: open }),

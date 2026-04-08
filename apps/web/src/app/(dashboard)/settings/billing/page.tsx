@@ -96,7 +96,7 @@ function OSSBillingNotice() {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
-  const isOSS = process.env.NEXT_PUBLIC_RANKFLO_MODE === "oss";
+  const isOSS = process.env.NEXT_PUBLIC_RANKFLO_MODE !== "saas";
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loadingPack, setLoadingPack] = useState<string | null>(null);

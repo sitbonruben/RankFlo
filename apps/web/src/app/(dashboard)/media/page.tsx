@@ -52,7 +52,7 @@ function FileIcon({ mimeType, url }: { mimeType: string; url: string }) {
   );
 }
 
-type ReplaceMode = "upload" | "url" | "ai" | null;
+type ReplaceMode = "upload" | "url" | "ai" | "search" | null;
 
 function MediaEditModal({
   media,
@@ -70,12 +70,18 @@ function MediaEditModal({
   const [replaceMode, setReplaceMode] = useState<ReplaceMode>(null);
   const [pasteUrl, setPasteUrl] = useState("");
   const [aiPrompt, setAiPrompt] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const replaceInput = useRef<HTMLInputElement>(null);
 
   const usageQ = trpc.media.usageCount.useQuery({ url: media.url });
+  const searchImagesQ = trpc.ai.searchImages.useQuery(
+    { query: searchQuery },
+    { enabled: searchQuery.length > 0 },
+  );
   const replaceMedia = trpc.media.replace.useMutation();
   const createMedia = trpc.media.create.useMutation();
   const generateImage = trpc.ai.generateImage.useMutation();
@@ -123,6 +129,20 @@ function MediaEditModal({
       onReplaced();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleUrlReplaceWith(url: string) {
+    setError(null);
+    setUploading(true);
+    try {
+      const dims = await getImgDims(url).catch(() => null);
+      await replaceMedia.mutateAsync({ id: media.id, newUrl: url, width: dims?.width, height: dims?.height });
+      onReplaced();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Replace failed");
     } finally {
       setUploading(false);
     }
@@ -252,6 +272,13 @@ function MediaEditModal({
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
                   Generate with AI
                 </button>
+                <button
+                  onClick={() => setReplaceMode("search")}
+                  className="flex w-full items-center gap-2 rounded-lg border border-gray-800 px-3 py-2 text-xs text-gray-300 hover:bg-gray-900 hover:text-white transition-colors"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+                  Search free image
+                </button>
               </div>
             )}
 
@@ -323,6 +350,42 @@ function MediaEditModal({
                     {generating ? "Generating…" : "Generate & Replace"}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Search mode */}
+            {replaceMode === "search" && (
+              <div className="space-y-2">
+                <form onSubmit={(e) => { e.preventDefault(); setSearchQuery(searchInput); }} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    placeholder="Search free images..."
+                    className="flex-1 rounded-lg border border-gray-800 bg-gray-900 px-3 py-2 text-xs text-white placeholder-gray-600 focus:border-accent focus:outline-none"
+                    autoFocus
+                  />
+                  <button type="submit" disabled={!searchInput.trim()} className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-black hover:bg-accent-9 disabled:opacity-50">Go</button>
+                </form>
+                {searchImagesQ.isLoading && <div className="grid grid-cols-2 gap-2">{[1,2,3,4].map(i => <div key={i} className="aspect-video animate-pulse rounded-lg bg-gray-900" />)}</div>}
+                {(searchImagesQ.data?.images ?? []).length > 0 && (
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                    {searchImagesQ.data!.images.map((img) => (
+                      <button
+                        key={img.id}
+                        onClick={() => void handleUrlReplaceWith(img.url)}
+                        className="group relative aspect-video overflow-hidden rounded-lg border border-gray-800 hover:border-accent transition-all"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={img.thumbUrl} alt={img.alt} className="h-full w-full object-cover" loading="lazy" />
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-1.5 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <p className="truncate text-[9px] text-white">by {img.photographer}</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button onClick={() => { setReplaceMode(null); setSearchQuery(""); setSearchInput(""); }} className="w-full rounded-lg border border-gray-800 px-3 py-1.5 text-xs text-gray-400 hover:text-white">Cancel</button>
               </div>
             )}
 

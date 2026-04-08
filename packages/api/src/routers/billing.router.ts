@@ -158,6 +158,7 @@ export const billingRouter = router({
       const session = await stripe.checkout.sessions.create({
         customer: customerId,
         mode: "subscription",
+        payment_method_collection: "always",
         line_items: [{ price: input.priceId, quantity: 1 }],
         subscription_data: {
           trial_period_days: TRIAL_DAYS,

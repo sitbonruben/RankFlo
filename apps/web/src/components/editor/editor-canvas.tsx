@@ -98,7 +98,7 @@ function EmptyState() {
 
 // ─── Editor Canvas ──────────────────────────────────────
 export function EditorCanvas() {
-  const { document, selectBlock } = useEditorStore();
+  const { document, selectBlock, isAiWriting } = useEditorStore();
   const { isFromPalette } = useDndEditor();
   const blocks = document.blocks;
 
@@ -126,6 +126,17 @@ export function EditorCanvas() {
       }}
       onClick={handleCanvasClick}
     >
+      {/* AI writing indicator */}
+      {isAiWriting && (
+        <div className="sticky top-0 z-10 flex items-center justify-center gap-2 bg-accent/10 border-b border-accent/20 px-4 py-2 backdrop-blur-sm">
+          <div className="flex gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: "0ms" }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: "150ms" }} />
+            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div>
+          <span className="text-xs font-medium text-accent">AI is writing...</span>
+        </div>
+      )}
       <div className="mx-auto max-w-3xl px-16 py-8" onClick={handleCanvasClick}>
         {blocks.length === 0 ? (
           <EmptyState />

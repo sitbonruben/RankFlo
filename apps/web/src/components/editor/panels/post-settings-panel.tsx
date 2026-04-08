@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useState } from "react";
 import { useEditorStore } from "@/stores/editor-store";
+import { ImagePickerModal } from "@/components/image-picker-modal";
 import {
   Input,
   Label,
@@ -26,6 +28,8 @@ export function PostSettingsPanel() {
     setExcerpt,
     locale,
   } = useEditorStore();
+
+  const [showImagePicker, setShowImagePicker] = useState<"search" | "generate" | null>(null);
 
   // Local state for locale since it's part of initial state but may not have a dedicated setter
   const store = useEditorStore();
@@ -174,6 +178,31 @@ export function PostSettingsPanel() {
               className="h-[100px] w-full object-cover"
             />
           </div>
+        )}
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={() => setShowImagePicker("search")}
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-gray-800 px-2 py-1.5 text-[11px] text-gray-400 hover:bg-gray-900 hover:text-white transition-colors"
+          >
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
+            Search free
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowImagePicker("generate")}
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-lg border border-gray-800 px-2 py-1.5 text-[11px] text-gray-400 hover:bg-gray-900 hover:text-white transition-colors"
+          >
+            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" /></svg>
+            Generate AI
+          </button>
+        </div>
+        {showImagePicker && (
+          <ImagePickerModal
+            defaultTab={showImagePicker}
+            onSelect={(url) => { setFeaturedImage(url); setShowImagePicker(null); }}
+            onClose={() => setShowImagePicker(null)}
+          />
         )}
       </div>
 

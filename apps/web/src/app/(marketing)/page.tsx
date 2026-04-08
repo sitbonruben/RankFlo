@@ -79,7 +79,7 @@ export default function HomePage() {
               <SiteCheckForm />
               <div className="flex items-center gap-5 text-xs text-gray-600">
                 <span className="flex items-center gap-1.5"><span className="text-accent">✓</span> Free plan forever</span>
-                <span className="flex items-center gap-1.5"><span className="text-accent">✓</span> No credit card</span>
+                <span className="flex items-center gap-1.5"><span className="text-accent">✓</span> 14-day free trial</span>
                 <span className="flex items-center gap-1.5"><span className="text-accent">✓</span> Self-hostable</span>
               </div>
             </div>
@@ -286,7 +286,7 @@ export default function HomePage() {
                 <div className="rounded-2xl border border-accent/40 bg-accent/5 p-6">
                   <p className="text-sm font-semibold text-white">Pro</p>
                   <div className="mt-1 flex items-baseline gap-1">
-                    <span className="text-3xl font-bold text-white">$29</span>
+                    <span className="text-3xl font-bold text-white">$5</span>
                     <span className="text-xs text-gray-500">per month</span>
                   </div>
                   <ul className="my-4 space-y-1.5">
@@ -300,7 +300,7 @@ export default function HomePage() {
                     ))}
                   </ul>
                   <Link href="/signup?plan=pro" className="block w-full rounded-lg bg-accent py-2 text-center text-sm font-semibold text-black transition-all hover:bg-accent-9">
-                    Try free 7 days
+                    Try free 14 days
                   </Link>
                 </div>
               </ScaleIn>
@@ -328,7 +328,7 @@ export default function HomePage() {
                 { "@type": "Question", name: "What is LLM Visibility?", acceptedAnswer: { "@type": "Answer", text: "LLM Visibility tracks when AI assistants like ChatGPT, Perplexity, and Claude mention or cite your brand. You can log mentions, monitor competitor AI presence, and optimize your content to appear in AI-generated answers." } },
                 { "@type": "Question", name: "What AI models does it use?", acceptedAnswer: { "@type": "Answer", text: "RankFlo supports OpenAI (GPT-4), Anthropic (Claude), Google (Gemini), and local models via Ollama. Bring your own API key to use AI features." } },
                 { "@type": "Question", name: "Can I self-host RankFlo?", acceptedAnswer: { "@type": "Answer", text: "Yes. RankFlo is MIT-licensed and ships as a Docker Compose stack. Deploy on any VPS with PostgreSQL and Redis." } },
-                { "@type": "Question", name: "Do I need a credit card?", acceptedAnswer: { "@type": "Answer", text: "No. The free plan needs no card. Pro includes a 7-day free trial — no card required until the trial ends." } },
+                { "@type": "Question", name: "Do I need a credit card?", acceptedAnswer: { "@type": "Answer", text: "The free plan needs no card. Pro includes a 14-day free trial — card required to start, first payment after 14 days. Cancel anytime." } },
               ],
             }),
           }}
@@ -346,7 +346,7 @@ export default function HomePage() {
               { q: "What is LLM Visibility?", a: "LLM Visibility tracks when AI assistants like ChatGPT, Perplexity, and Claude mention your brand in their answers. You can log citations, monitor how competitors appear in AI responses, and optimize your content to get cited more often." },
               { q: "What AI models does it support?", a: "RankFlo supports OpenAI (GPT-4o), Anthropic (Claude), Google (Gemini), and local models via Ollama. You bring your own API key — connect it in Settings and AI features are instantly available at your own cost." },
               { q: "Can I self-host RankFlo?", a: "Yes. RankFlo is MIT-licensed and ships as a Docker Compose stack. Run it on any VPS with PostgreSQL and Redis. One command to start. Own your data completely with zero monthly fees to us." },
-              { q: "Do I need a credit card to start?", a: "No. The free plan starts immediately with no card required. Pro includes a 7-day free trial — you only need a card if you decide to continue after the trial." },
+              { q: "Do I need a credit card to start?", a: "The free plan needs no card. Pro trial requires a card to start — you get 14 days free, then payment begins. Cancel anytime during the trial." },
             ].map(({ q, a }) => (
               <details key={q} className="group">
                 <summary className="flex cursor-pointer items-center justify-between px-6 py-5 text-sm font-semibold text-white hover:text-accent transition-colors list-none">
@@ -373,7 +373,7 @@ export default function HomePage() {
             Start ranking in<br /><span className="text-accent">days, not months</span>
           </h2>
           <p className="mt-5 text-lg text-gray-400">
-            Free plan. No credit card. Works in minutes.
+            Free plan. 14-day Pro trial. Works in minutes.
           </p>
           <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
             <Link

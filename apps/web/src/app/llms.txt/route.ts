@@ -58,7 +58,7 @@ GET https://app.rankflo.io/api/v1/llms.txt?project_key=blg_YOUR_KEY
 ## Pricing
 
 - **Free**: Up to 5 projects, 50 posts per project, AI content generation, API access
-- **Pro ($19/mo)**: Unlimited projects and posts, autopilot scheduling, advanced SEO tools, priority support
+- **Pro ($5/mo or $49/yr)**: Unlimited projects and posts, autopilot scheduling, advanced SEO tools, priority support, 14-day free trial
 - **Enterprise**: Custom limits, SSO, SLA, dedicated infrastructure
 
 ## Blog Posts

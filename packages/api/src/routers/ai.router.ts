@@ -5,6 +5,24 @@ import crypto from "crypto";
 import { router, orgProcedure } from "../trpc";
 import { decrypt } from "../lib/encrypt";
 import { logTokenUsage } from "../lib/credits";
+
+// ─── Simple rate limiter for AI endpoints ──────────────────
+const aiRateLimits = new Map<string, { count: number; resetAt: number }>();
+function checkAIRateLimit(orgId: string, feature: string, maxPerMin: number) {
+  const key = `${orgId}:${feature}`;
+  const now = Date.now();
+  const entry = aiRateLimits.get(key);
+  if (!entry || now > entry.resetAt) {
+    aiRateLimits.set(key, { count: 1, resetAt: now + 60_000 });
+    return;
+  }
+  if (entry.count >= maxPerMin) {
+    throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: `Rate limit exceeded: max ${maxPerMin} requests per minute for ${feature}.` });
+  }
+  entry.count++;
+}
+// Clean up stale entries every 5 minutes
+setInterval(() => { const now = Date.now(); for (const [k, v] of aiRateLimits) { if (now > v.resetAt) aiRateLimits.delete(k); } }, 300_000).unref();
 import {
   resolveAIConfig,
   generateContent,
@@ -177,6 +195,7 @@ export const aiRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      checkAIRateLimit(ctx.organizationId, "generateContent", 5);
       const config = await requireAIConfig(ctx);
 
       // Deduct AI credits before calling the provider
@@ -210,6 +229,23 @@ export const aiRouter = router({
         );
 
         await maybeLogUsage(ctx.db, ctx.organizationId, result, "generateContent");
+
+        // Auto-fetch a free stock image from Pexels based on the AI-suggested prompt
+        if (result.featuredImagePrompt) {
+          try {
+            const pexelsKey = process.env.PEXELS_API_KEY ?? "lByrJErb46CXBMBflk7oTdJcqJCfccLKl4klnmU3k7LcGRpvOMYqcbS8";
+            const searchTerms = result.featuredImagePrompt.slice(0, 100);
+            const imgRes = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(searchTerms)}&per_page=5&orientation=landscape`, { headers: { Authorization: pexelsKey } });
+            if (imgRes.ok) {
+              const imgData = (await imgRes.json()) as { photos: { src: { large2x: string } }[] };
+              const firstImg = imgData.photos?.[0]?.src?.large2x;
+              if (firstImg) {
+                (result as Record<string, unknown>).featuredImage = firstImg;
+              }
+            }
+          } catch { /* non-critical */ }
+        }
+
         return result;
       } catch (error) {
         throw new TRPCError({
@@ -459,6 +495,7 @@ export const aiRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      checkAIRateLimit(ctx.organizationId, "improveContent", 10);
       const config = await requireAIConfig(ctx);
 
       await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.improveContent, "improveContent");
@@ -509,6 +546,7 @@ export const aiRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      checkAIRateLimit(ctx.organizationId, "chat", 20);
       const config = await requireAIConfig(ctx);
 
       await checkAndDeductCredits(ctx.db, ctx.organizationId, CREDIT_COSTS.chat, "chat");
@@ -657,23 +695,51 @@ export const aiRouter = router({
         });
       }
 
+      // Auto-fetch a free stock image for the featured image
+      let featuredImage: string | undefined;
+      if (generated.featuredImagePrompt) {
+        try {
+          const pexelsKey = process.env.PEXELS_API_KEY ?? "lByrJErb46CXBMBflk7oTdJcqJCfccLKl4klnmU3k7LcGRpvOMYqcbS8";
+          const searchTerms = generated.featuredImagePrompt.slice(0, 100);
+          const imgRes = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(searchTerms)}&per_page=5&orientation=landscape`, { headers: { Authorization: pexelsKey } });
+          if (imgRes.ok) {
+            const imgData = (await imgRes.json()) as { photos: { src: { large2x: string } }[] };
+            const firstImg = imgData.photos?.[0]?.src?.large2x;
+            if (firstImg) featuredImage = firstImg;
+          }
+        } catch { /* non-critical */ }
+      }
+
+      // Parse HTML into proper editor blocks
+      const blocks: { id: string; type: string; props: Record<string, unknown> }[] = [];
+      blocks.push({ id: crypto.randomUUID(), type: "table-of-contents", props: { style: "minimal", maxDepth: 3 } });
+      const htmlParts = generated.contentHtml.match(/<(h[1-4]|p|ul|ol|blockquote)(\s[^>]*)?>[\s\S]*?<\/\1>/gi) ?? [];
+      for (const part of htmlParts) {
+        const tag = part.match(/^<(\w+)/)?.[1]?.toLowerCase() ?? "";
+        const text = part.replace(/<[^>]*>/g, "").trim();
+        if (!text) continue;
+        if (tag.startsWith("h")) {
+          blocks.push({ id: crypto.randomUUID(), type: "heading", props: { text, level: Math.min(parseInt(tag[1]!), 4), alignment: "left" } });
+        } else if (tag === "ul" || tag === "ol") {
+          const items = [...part.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map(m => m[1]!.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
+          if (items.length) blocks.push({ id: crypto.randomUUID(), type: "list", props: { items, style: tag === "ul" ? "bullet" : "number" } });
+        } else {
+          blocks.push({ id: crypto.randomUUID(), type: "text", props: { html: `<p>${text}</p>`, alignment: "left" } });
+        }
+      }
+      if (blocks.length <= 1) {
+        blocks.push({ id: crypto.randomUUID(), type: "text", props: { html: generated.contentHtml, alignment: "left" } });
+      }
+      blocks.push({ id: crypto.randomUUID(), type: "newsletter-cta", props: { title: "Stay in the loop", description: "Get the latest insights delivered to your inbox.", buttonText: "Subscribe", style: "card", placeholder: "your@email.com" } });
+
       // Save as DRAFT post
       const post = await ctx.db.post.create({
         data: {
           title: generated.title,
           slug: generated.slug || slugify(generated.title),
           excerpt: generated.excerpt,
-          content: {
-            version: 1,
-            metadata: {},
-            blocks: [
-              {
-                id: crypto.randomUUID(),
-                type: "text",
-                props: { html: generated.contentHtml, alignment: "left" },
-              },
-            ],
-          },
+          featuredImage,
+          content: { version: 1, metadata: {}, blocks },
           contentHtml: generated.contentHtml,
           contentPlain: generated.content,
           readingTime: generated.estimatedReadTime,
@@ -902,6 +968,44 @@ export const aiRouter = router({
       return { created };
     }),
 
+  // ─── SEARCH FREE IMAGES (Pexels) ────────────────────────
+  searchImages: orgProcedure
+    .input(
+      z.object({
+        query: z.string().min(1).max(200),
+        page: z.number().int().positive().default(1),
+      }),
+    )
+    .query(async ({ input }) => {
+      const apiKey = process.env.PEXELS_API_KEY ?? "lByrJErb46CXBMBflk7oTdJcqJCfccLKl4klnmU3k7LcGRpvOMYqcbS8";
+      const url = `https://api.pexels.com/v1/search?query=${encodeURIComponent(input.query)}&per_page=20&page=${input.page}&orientation=landscape`;
+      const res = await fetch(url, {
+        headers: { Authorization: apiKey },
+      });
+      if (!res.ok) return { images: [], total: 0 };
+      const data = (await res.json()) as {
+        total_results: number;
+        photos: {
+          id: number;
+          src: { original: string; large2x: string; large: string; medium: string; small: string; tiny: string };
+          photographer: string;
+          photographer_url: string;
+          alt?: string;
+        }[];
+      };
+      return {
+        images: data.photos.map((p) => ({
+          id: String(p.id),
+          url: p.src.large2x || p.src.large,
+          thumbUrl: p.src.medium || p.src.small,
+          alt: p.alt ?? "",
+          photographer: p.photographer,
+          photographerUrl: p.photographer_url,
+        })),
+        total: data.total_results,
+      };
+    }),
+
   // ─── GENERATE IMAGE (KIE Nano Banana) ───────────────────
   generateImage: orgProcedure
     .input(
@@ -911,6 +1015,7 @@ export const aiRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      checkAIRateLimit(ctx.organizationId, "generateImage", 3);
       // Resolve KIE image API key — org setting takes priority, then env
       const org = await ctx.db.organization.findUnique({
         where: { id: ctx.organizationId },

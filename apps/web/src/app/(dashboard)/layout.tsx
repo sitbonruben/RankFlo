@@ -7,6 +7,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationBell } from "@/components/notification-bell";
+import { HelpzenIdentify } from "@/components/helpzen-identify";
 import { trpc } from "@/trpc/client";
 
 type AppMode = "seo" | "analytics" | "llms";
@@ -314,6 +315,93 @@ function AdminApiButton() {
   );
 }
 
+function CreditsBadge() {
+  const { data: credits } = trpc.billing.getCredits.useQuery(undefined, { staleTime: 30_000 });
+  const [showUpsell, setShowUpsell] = useState(false);
+
+  if (!credits) return null;
+
+  const balance = credits.balance;
+  const isLow = balance <= 5 && balance > 0;
+  const isEmpty = balance <= 0;
+  const isEnterprise = credits.isEnterprise;
+
+  if (isEnterprise) return null; // unlimited, no need to show
+
+  return (
+    <>
+      <div className="px-3 pb-1">
+        <button
+          onClick={() => setShowUpsell(true)}
+          className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left transition-colors ${
+            isEmpty
+              ? "bg-red-950/20 border border-red-800/30 hover:bg-red-950/30"
+              : isLow
+              ? "bg-yellow-950/20 border border-yellow-800/30 hover:bg-yellow-950/30"
+              : "hover:bg-gray-50 dark:hover:bg-gray-900"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <svg className={`h-4 w-4 ${isEmpty ? "text-red-400" : isLow ? "text-yellow-400" : "text-accent"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+            </svg>
+            <span className={`text-xs font-medium ${isEmpty ? "text-red-400" : isLow ? "text-yellow-400" : "text-gray-500 dark:text-gray-400"}`}>
+              {isEmpty ? "No credits" : `${balance} credits`}
+            </span>
+          </div>
+          {(isEmpty || isLow) && (
+            <span className="text-[10px] font-medium text-accent">Top up</span>
+          )}
+        </button>
+      </div>
+
+      {/* Upsell popup */}
+      {showUpsell && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowUpsell(false)}>
+          <div className="w-full max-w-sm rounded-2xl border border-gray-800 bg-gray-950 p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10">
+                <svg className="h-6 w-6 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-white">
+                {isEmpty ? "Out of AI credits" : "Running low on credits"}
+              </h3>
+              <p className="mt-1 text-sm text-gray-400">
+                {isEmpty
+                  ? "Add more credits or bring your own AI keys to keep generating content."
+                  : `You have ${balance} credits left. Top up to keep creating.`}
+              </p>
+            </div>
+
+            <div className="mt-5 space-y-2">
+              <Link
+                href="/settings/billing"
+                onClick={() => setShowUpsell(false)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2.5 text-sm font-semibold text-black hover:bg-accent-9 transition-colors"
+              >
+                Buy credit packs
+              </Link>
+              <Link
+                href="/settings/ai"
+                onClick={() => setShowUpsell(false)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-gray-800 py-2.5 text-sm text-gray-300 hover:bg-gray-900 transition-colors"
+              >
+                Use your own AI keys (unlimited)
+              </Link>
+            </div>
+
+            <button onClick={() => setShowUpsell(false)} className="mt-3 w-full text-center text-xs text-gray-600 hover:text-gray-400">
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 function UserMenu() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -528,6 +616,9 @@ function SidebarContent({
       {/* Admin link — only for admin emails */}
       <AdminSidebarLink onNavigate={onNavigate} pathname={pathname} />
 
+      {/* Credits */}
+      <CreditsBadge />
+
       {/* User menu */}
       <UserMenu />
     </>
@@ -574,6 +665,7 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen overflow-hidden bg-white dark:bg-black">
       <CommandPalette />
+      <HelpzenIdentify />
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (

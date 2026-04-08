@@ -100,7 +100,7 @@ const COMPARISONS: Record<string, ComparisonData> = {
       { feature: "AI Content", rankflo: "Built-in", competitor: "Third-party" },
       { feature: "Analytics", rankflo: "Built-in", competitor: "Not included" },
       { feature: "SEO Tools", rankflo: "Built-in", competitor: "Not included" },
-      { feature: "Pricing", rankflo: "Free + $19/mo", competitor: "Free + $300/mo" },
+      { feature: "Pricing", rankflo: "Free + $5/mo", competitor: "Free + $300/mo" },
       { feature: "Self-hosting", rankflo: "Yes", competitor: "No" },
       { feature: "Open Source", rankflo: "MIT", competitor: "Proprietary" },
     ],

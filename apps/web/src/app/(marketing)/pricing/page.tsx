@@ -3,7 +3,7 @@ import { PricingContent } from "./pricing-content";
 
 export const metadata: Metadata = {
   title: "Pricing",
-  description: "Simple, transparent pricing. Start free, scale when you're ready. 7-day free trial on Pro.",
+  description: "Simple, transparent pricing. Start free, scale when you're ready. 14-day free trial on Pro — $5/month or $49/year.",
 };
 
 export default function PricingPage() {

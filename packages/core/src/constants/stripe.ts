@@ -103,9 +103,9 @@ export const TRIAL_CREDIT_GRANT = 30; // credits given at trial start
 // ─── Subscription Prices (display only) ─────────────────────────────────────
 
 export const PLAN_PRICES = {
-  PRO_MONTHLY: 19,
-  PRO_ANNUAL: 190, // billed annually; equivalent to ~$15.83/mo
-  PRO_ANNUAL_MONTHLY_RATE: 15.83,
+  PRO_MONTHLY: 5,
+  PRO_ANNUAL: 49, // billed annually; equivalent to ~$4.08/mo — 20% savings
+  PRO_ANNUAL_MONTHLY_RATE: 4.08,
 } as const;
 
-export const TRIAL_DAYS = 7;
+export const TRIAL_DAYS = 14;

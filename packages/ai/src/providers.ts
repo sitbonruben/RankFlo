@@ -3,7 +3,7 @@ import type { AIConfig } from "./types";
 const DEFAULT_MODELS: Record<string, string> = {
   openai: "gpt-4o",
   anthropic: "claude-sonnet-4-20250514",
-  google: "gemini-2.0-flash",
+  google: "gemini-2.5-flash",
   kie: "gemini-2.5-flash",
   ollama: "llama3.2",
 };

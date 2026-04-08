@@ -83,7 +83,7 @@ export function PricingContent() {
             Simple, transparent pricing
           </h1>
           <p className="mt-4 text-lg text-gray-600 dark:text-gray-400">
-            Start free. Scale when you&apos;re ready. {TRIAL_DAYS}-day free trial on Pro — no card required.
+            Start free. Scale when you&apos;re ready. {TRIAL_DAYS}-day free trial on Pro — cancel anytime.
           </p>
         </div>
       </div>
@@ -294,7 +294,7 @@ export function PricingContent() {
             mainEntity: [
               { "@type": "Question", name: "What is an AI credit?", acceptedAnswer: { "@type": "Answer", text: "One credit represents one AI action. Generating a full blog post costs 3 credits. Writing a meta description or improving content costs 1–2 credits. Credits are deducted only when an action succeeds." } },
               { "@type": "Question", name: "Do AI credits roll over?", acceptedAnswer: { "@type": "Answer", text: "Monthly credits (included with your plan) expire at the end of each billing cycle. Credits purchased in packs never expire and are consumed first." } },
-              { "@type": "Question", name: "Is there a free trial?", acceptedAnswer: { "@type": "Answer", text: `Yes. The Pro plan includes a ${TRIAL_DAYS}-day free trial with no credit card required. You get full Pro access plus 30 bonus AI credits during the trial.` } },
+              { "@type": "Question", name: "Is there a free trial?", acceptedAnswer: { "@type": "Answer", text: `Yes. The Pro plan includes a ${TRIAL_DAYS}-day free trial with credit card required, cancel anytime. You get full Pro access plus 30 bonus AI credits during the trial.` } },
               { "@type": "Question", name: "Can I cancel anytime?", acceptedAnswer: { "@type": "Answer", text: "Yes. Cancel anytime from your billing settings. You keep access until the end of your billing period. No cancellation fees." } },
               { "@type": "Question", name: "Can I self-host instead of paying?", acceptedAnswer: { "@type": "Answer", text: "Yes. RankFlo is open source (AGPL-3.0). Self-host on any server with Docker for free, forever. All core features are included with no limits." } },
               { "@type": "Question", name: "What payment methods do you accept?", acceptedAnswer: { "@type": "Answer", text: "We accept all major credit and debit cards (Visa, Mastercard, Amex) via Stripe. Bank transfers are available on Enterprise plans." } },
@@ -308,7 +308,7 @@ export function PricingContent() {
           {[
             { q: "What is an AI credit?", a: "One credit = one AI action. Full post generation costs 3 credits. Meta descriptions and improvements cost 1–2 credits. Credits deduct only on success." },
             { q: "Do credits roll over?", a: "Monthly plan credits expire at cycle end. Credits bought in packs never expire and are consumed first." },
-            { q: `Is there a free trial?`, a: `Yes — ${TRIAL_DAYS} days free on Pro, no card required. You get full access plus 30 bonus credits.` },
+            { q: `Is there a free trial?`, a: `Yes — ${TRIAL_DAYS} days free on Pro, card required, cancel anytime. You get full access plus 30 bonus credits.` },
             { q: "Can I cancel anytime?", a: "Yes. Cancel from billing settings, keep access until period ends. No fees." },
             { q: "Can I self-host instead?", a: "Yes. RankFlo is open source (AGPL-3.0). Self-host with Docker for free, forever, with no limits." },
             { q: "What payment methods?", a: "All major cards via Stripe. Bank transfer available on Enterprise." },

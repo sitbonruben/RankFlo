@@ -14,7 +14,7 @@ import {
   createSession,
   invalidateSession,
 } from "@rankflo/auth";
-import { PLAN_MONTHLY_CREDITS } from "@rankflo/core/constants";
+import { PLAN_MONTHLY_CREDITS, TRIAL_CREDIT_GRANT } from "@rankflo/core/constants";
 import { sendEmail } from "@rankflo/email";
 
 import { router, publicProcedure, protectedProcedure } from "../trpc";
@@ -75,7 +75,8 @@ export const userRouter = router({
       }
 
       // Create user + personal organization + admin membership in one transaction
-      const freeCredits = PLAN_MONTHLY_CREDITS["FREE"] ?? 10;
+      // New accounts get trial credits (30) to try AI features during 14-day trial
+      const freeCredits = TRIAL_CREDIT_GRANT;
       const orgName = `${input.name}'s workspace`;
       const slug = makeSlug(input.name);
 

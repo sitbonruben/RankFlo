@@ -33,6 +33,15 @@ interface PendingBlog {
   topic?: string;
 }
 
+// ─── Error helpers ──────────────────────────────────────
+function formatAIError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : "Unknown error";
+  if (msg.includes("Not enough AI credits") || msg.includes("PAYMENT_REQUIRED")) {
+    return "You are out of AI credits. Go to Settings → Billing to buy more credits, or Settings → AI to use your own API keys (unlimited, no credits needed).";
+  }
+  return msg;
+}
+
 // ─── Intent helpers ──────────────────────────────────────
 const EDIT_PATTERNS = [
   /\b(improve|enhance|better|refine)\b/i,
@@ -302,6 +311,7 @@ export function AiChatPanel() {
   const chatMutation = trpc.ai.chat.useMutation();
   const buildBlocksMutation = trpc.ai.buildBlocks.useMutation();
   const editDocumentMutation = trpc.ai.editDocument.useMutation();
+  const utils = trpc.useUtils();
 
   // Auto-scroll
   React.useEffect(() => {
@@ -351,6 +361,9 @@ export function AiChatPanel() {
       const blocks = result.blocks;
       if (!blocks.length) return;
 
+      const { setIsAiWriting } = useEditorStore.getState();
+      setIsAiWriting(true);
+
       // Show first block immediately
       setDocument({ version: 1, blocks: [blocks[0]] as never[], metadata: {} });
 
@@ -359,8 +372,11 @@ export function AiChatPanel() {
         const snapshot = blocks.slice(0, i + 1);
         setTimeout(() => {
           setDocument({ version: 1, blocks: snapshot as never[], metadata: {} });
+          if (i === blocks.length - 1) setIsAiWriting(false);
         }, i * 80);
       }
+      // Fallback if only 1 block
+      if (blocks.length === 1) setIsAiWriting(false);
     },
     [setDocument, setTitle, setSlug, setExcerpt, setMetaTitle, setMetaDescription, setFeaturedImage, setOgImage],
   );
@@ -409,7 +425,7 @@ export function AiChatPanel() {
           writeToEditor(result);
           addAiMessage(`Done! "${result.title}" is ready in the editor (${result.blocks.length} blocks). SEO meta, excerpt, and tags are filled in too. Want me to adjust anything?`);
         } catch (err) {
-          addAiMessage(`Couldn't generate content: ${err instanceof Error ? err.message : "Unknown error"}`);
+          addAiMessage(`Couldn't generate content: ${formatAIError(err)}`);
         } finally {
           setIsTyping(false);
         }
@@ -460,7 +476,7 @@ export function AiChatPanel() {
           writeToEditor(result);
           addAiMessage(`Done! "${result.title}" is live in the editor (${result.blocks.length} blocks). SEO meta, excerpt, and tags set. Want me to tweak anything?`);
         } catch (err) {
-          addAiMessage(`Couldn't generate: ${err instanceof Error ? err.message : "Unknown error"}`);
+          addAiMessage(`Couldn't generate: ${formatAIError(err)}`);
         } finally {
           setIsTyping(false);
         }
@@ -485,7 +501,7 @@ export function AiChatPanel() {
             writeToEditor(result);
             addAiMessage(`Done! "${result.title}" is in the editor (${result.blocks.length} blocks). SEO meta, excerpt, and tags filled in. Need any changes?`);
           } catch (err) {
-            addAiMessage(`Generation failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+            addAiMessage(`Generation failed: ${formatAIError(err)}`);
           } finally {
             setIsTyping(false);
           }
@@ -502,10 +518,38 @@ export function AiChatPanel() {
             writeToEditor(result);
             addAiMessage(`Done! "${result.title}" is in the editor (${result.blocks.length} blocks). SEO, excerpt, and tags filled in. Want me to change anything?`);
           } catch (err) {
-            addAiMessage(`Generation failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+            addAiMessage(`Generation failed: ${formatAIError(err)}`);
           } finally {
             setIsTyping(false);
           }
+        }
+        return;
+      }
+
+      // ── Add image intent: search Unsplash and insert image block ──
+      if (/\b(add|insert)\s+(a\s+|an\s+)?image\b/i.test(trimmed)) {
+        const topic = trimmed.replace(/\b(add|insert)\s+(a\s+|an\s+)?image\s*(of|about|for|on|with)?\s*/i, "").trim();
+        const searchTerm = topic || title || "technology";
+        addAiMessage(`Searching for a free image about "${searchTerm}"…`);
+        try {
+          const result = await utils.ai.searchImages.fetch({ query: searchTerm });
+          const images = result?.images ?? [];
+          if (images.length > 0) {
+            const picked = images[Math.floor(Math.random() * Math.min(5, images.length))]!;
+            const addBlockData = useEditorStore.getState().addBlockData;
+            addBlockData({
+              id: crypto.randomUUID(),
+              type: "image",
+              props: { src: picked.url, alt: picked.alt || searchTerm, caption: `Photo by ${picked.photographer} on Unsplash`, width: "large", rounded: true, shadow: false },
+            } as never);
+            addAiMessage(`Added an image about "${searchTerm}" by ${picked.photographer}. You can click it to change the caption or replace it.`);
+          } else {
+            addAiMessage(`Could not find free images for "${searchTerm}". Try a different description, or use the image block's "Search free" button.`);
+          }
+        } catch (err) {
+          addAiMessage(`Image search failed: ${formatAIError(err)}. You can add an image manually using the image block.`);
+        } finally {
+          setIsTyping(false);
         }
         return;
       }
@@ -563,7 +607,7 @@ export function AiChatPanel() {
             ]);
           }
         } catch (err) {
-          addAiMessage(`Edit failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+          addAiMessage(`Edit failed: ${formatAIError(err)}`);
         } finally {
           setIsTyping(false);
         }
