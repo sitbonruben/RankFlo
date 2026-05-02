@@ -6,6 +6,7 @@ import { Callout } from "@/components/marketing/docs-callout";
 export const metadata: Metadata = {
   title: "API Reference — RankFlo Docs",
   description: "Content Delivery API: fetch published posts, search content, and embed analytics into any website or app.",
+  alternates: { canonical: "/docs/api-reference" },
 };
 
 export default function ApiReferencePage() {

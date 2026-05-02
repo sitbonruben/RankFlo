@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "About",
   description:
     "RankFlo is the open-source blog platform built for organic growth. AI-powered content, built-in analytics, and a developer-first architecture.",
+  alternates: { canonical: "/about" },
 };
 
 const STEPS = [

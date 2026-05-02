@@ -6,6 +6,7 @@ import { Callout } from "@/components/marketing/docs-callout";
 export const metadata: Metadata = {
   title: "LLM Visibility — RankFlo Docs",
   description: "Track when AI assistants mention your brand, monitor competitors, and optimize your content for AI search visibility.",
+  alternates: { canonical: "/docs/llm-visibility" },
 };
 
 export default function LlmVisibilityPage() {

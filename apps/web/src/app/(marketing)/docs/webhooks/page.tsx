@@ -5,6 +5,7 @@ import { Callout } from "@/components/marketing/docs-callout";
 export const metadata: Metadata = {
   title: "Webhooks — RankFlo Docs",
   description: "Subscribe to real-time events, verify payloads with HMAC-SHA256 signatures, and build integrations.",
+  alternates: { canonical: "/docs/webhooks" },
 };
 
 export default function WebhooksPage() {

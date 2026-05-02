@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Features",
   description:
     "Explore everything RankFlo offers: AI content generation, built-in analytics, SEO tools, headless CMS API, and more.",
+  alternates: { canonical: "/features" },
 };
 
 const INTEGRATIONS = [

@@ -6,6 +6,7 @@ import { Callout } from "@/components/marketing/docs-callout";
 export const metadata: Metadata = {
   title: "Analytics Setup — RankFlo Docs",
   description: "Set up cookieless, privacy-first analytics on your website with one line of code. Track pageviews, traffic sources, AI referrers, and more.",
+  alternates: { canonical: "/docs/analytics-setup" },
 };
 
 export default function AnalyticsSetupPage() {

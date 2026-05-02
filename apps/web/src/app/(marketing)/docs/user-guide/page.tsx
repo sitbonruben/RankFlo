@@ -6,6 +6,7 @@ import { Callout } from "@/components/marketing/docs-callout";
 export const metadata: Metadata = {
   title: "User Guide — RankFlo Docs",
   description: "Learn the dashboard, editor, AI tools, analytics, team management, and more.",
+  alternates: { canonical: "/docs/user-guide" },
 };
 
 export default function UserGuidePage() {

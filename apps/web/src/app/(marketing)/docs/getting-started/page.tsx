@@ -6,6 +6,7 @@ import { Callout } from "@/components/marketing/docs-callout";
 export const metadata: Metadata = {
   title: "Getting Started — RankFlo Docs",
   description: "Install RankFlo, configure your environment, and publish your first post in under 10 minutes.",
+  alternates: { canonical: "/docs/getting-started" },
 };
 
 export default function GettingStartedPage() {

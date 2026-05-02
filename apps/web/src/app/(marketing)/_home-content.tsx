@@ -1,0 +1,402 @@
+"use client";
+
+import Link from "next/link";
+import { SiteCheckForm } from "@/components/marketing/site-check-form";
+import { ThreeModes } from "@/components/marketing/three-modes";
+import {
+  FadeUp,
+  FadeIn,
+  ScaleIn,
+  StaggerChildren,
+  ParallaxFloat,
+  staggerChildVariants,
+  motion,
+} from "@/components/marketing/animations";
+
+export default function HomeContent() {
+  return (
+    <>
+      {/* JSON-LD */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            name: "RankFlo",
+            applicationCategory: "WebApplication",
+            operatingSystem: "Web",
+            description: "The headless blog platform with built-in SEO, analytics, and LLM visibility tracking. Rank on Google and get cited by AI.",
+            url: process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io",
+            offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+            aggregateRating: { "@type": "AggregateRating", ratingValue: "4.9", ratingCount: "127" },
+          }),
+        }}
+      />
+
+      {/* ─── HERO ─────────────────────────────────────────────── */}
+      <section className="relative overflow-hidden bg-black pb-0 pt-24">
+        {/* Grid */}
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(57,255,20,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(57,255,20,0.04)_1px,transparent_1px)] bg-[size:72px_72px]" />
+        {/* Glow */}
+        <div className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-[500px] w-[900px] rounded-full bg-[radial-gradient(ellipse_at_top,rgba(57,255,20,0.12)_0%,transparent_65%)]" />
+
+        <div className="relative mx-auto max-w-wide px-6">
+          {/* Badge */}
+          <FadeIn>
+            <div className="flex justify-center mb-6">
+              <span className="inline-flex items-center gap-2 rounded-full border border-accent/25 bg-accent/5 px-4 py-1.5 text-xs font-medium text-accent">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent shadow-[0_0_6px_rgba(57,255,20,0.8)]" />
+                Blog · Analytics · LLM Visibility — all in one
+              </span>
+            </div>
+          </FadeIn>
+
+          {/* Headline */}
+          <div className="mx-auto max-w-3xl text-center">
+            <FadeUp delay={0.1}>
+              <h1 className="text-5xl font-bold leading-[1.05] tracking-tight text-white sm:text-6xl lg:text-7xl">
+                Rank on Google.
+                <br />
+                <span className="text-accent">Get cited by AI.</span>
+                <br />
+                Track everything.
+              </h1>
+            </FadeUp>
+            <FadeUp delay={0.2}>
+              <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-gray-400">
+                RankFlo is the headless blog platform with built-in SEO tools, analytics, and LLM visibility tracking — everything your content needs to win.
+              </p>
+            </FadeUp>
+          </div>
+
+          {/* Quick site check */}
+          <FadeUp delay={0.3}>
+            <div className="mx-auto mt-10 flex flex-col items-center gap-3">
+              <p className="text-sm font-medium text-gray-300">
+                See what&apos;s holding your site back — enter your URL:
+              </p>
+              <SiteCheckForm />
+              <div className="flex items-center gap-5 text-xs text-gray-600">
+                <span className="flex items-center gap-1.5"><span className="text-accent">✓</span> Free plan forever</span>
+                <span className="flex items-center gap-1.5"><span className="text-accent">✓</span> 14-day free trial</span>
+                <span className="flex items-center gap-1.5"><span className="text-accent">✓</span> Self-hostable</span>
+              </div>
+            </div>
+          </FadeUp>
+
+          {/* Dashboard preview — 3D parallax */}
+          <ParallaxFloat className="mx-auto mt-16 max-w-5xl">
+            <div className="rounded-t-2xl border border-b-0 border-gray-800 bg-gray-950 shadow-[0_-8px_60px_rgba(57,255,20,0.07)]">
+              {/* Window chrome */}
+              <div className="flex items-center gap-1.5 border-b border-gray-800 px-5 py-3">
+                <div className="h-2.5 w-2.5 rounded-full bg-red-500/50" />
+                <div className="h-2.5 w-2.5 rounded-full bg-yellow-500/50" />
+                <div className="h-2.5 w-2.5 rounded-full bg-green-500/50" />
+                <div className="mx-auto flex items-center gap-6 text-xs text-gray-600">
+                  <span className="rounded bg-gray-800 px-3 py-1 text-gray-400">Blog & SEO</span>
+                  <span className="px-3 py-1">Analytics</span>
+                  <span className="px-3 py-1">LLM Search</span>
+                </div>
+                <div className="text-xs text-gray-700">app.rankflo.io</div>
+              </div>
+
+              {/* Dashboard content */}
+              <div className="p-6">
+                <div className="grid grid-cols-4 gap-3 mb-6">
+                  {[
+                    { label: "Organic visitors", value: "24,891", delta: "+31%" },
+                    { label: "AI citations", value: "847", delta: "+12%" },
+                    { label: "SEO score", value: "94", delta: "Excellent" },
+                    { label: "LLM visibility", value: "78/100", delta: "Grade B+" },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-xl border border-gray-800 bg-black p-4">
+                      <p className="text-xs text-gray-500">{s.label}</p>
+                      <p className="mt-1 text-2xl font-bold text-white">{s.value}</p>
+                      <p className="mt-0.5 text-xs font-medium text-accent">{s.delta}</p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-2 rounded-xl border border-gray-800 bg-black p-4">
+                    <p className="mb-3 text-xs text-gray-500">Organic traffic · Last 30 days</p>
+                    <div className="flex items-end gap-1 h-24">
+                      {[20,28,22,35,30,42,38,50,44,55,60,52,68,65,72,70,80,75,85,82,90,88,95,92,100,96,88,94,98,100].map((h, i) => (
+                        <div key={i} className="flex-1 rounded-sm" style={{ height: `${h}%`, background: `rgba(57,255,20,${0.08 + (h / 100) * 0.35})` }} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-gray-800 bg-black p-4">
+                    <p className="mb-3 text-xs text-gray-500">AI platform citations</p>
+                    {[
+                      { name: "ChatGPT", pct: 42, color: "bg-green-500" },
+                      { name: "Perplexity", pct: 31, color: "bg-blue-500" },
+                      { name: "Claude", pct: 18, color: "bg-purple-500" },
+                      { name: "Others", pct: 9, color: "bg-gray-600" },
+                    ].map((p) => (
+                      <div key={p.name} className="mb-2">
+                        <div className="flex justify-between text-xs text-gray-500 mb-0.5">
+                          <span>{p.name}</span><span>{p.pct}%</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-gray-800">
+                          <div className={`h-1.5 rounded-full ${p.color}`} style={{ width: `${p.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </ParallaxFloat>
+        </div>
+      </section>
+
+      {/* ─── THREE MODES (interactive toggle) ────────────────── */}
+      <ThreeModes />
+
+      {/* ─── HOW IT WORKS ─────────────────────────────────────── */}
+      <section className="border-y border-gray-800 bg-black py-24">
+        <div className="mx-auto max-w-wide px-6">
+          <FadeUp className="mb-14 text-center">
+            <p className="text-sm font-semibold text-accent">Setup in minutes</p>
+            <h2 className="mt-2 text-4xl font-bold tracking-tight text-white">From zero to publishing in 3 steps</h2>
+          </FadeUp>
+
+          <StaggerChildren stagger={0.15} className="grid gap-8 md:grid-cols-3">
+            {[
+              {
+                step: "01",
+                title: "Add one line to your site",
+                desc: "Drop the tracker snippet into your website. It starts collecting analytics instantly — no cookies, no GDPR headaches.",
+                code: `<script src="https://app.rankflo.io/tracker.js"\n  data-project-key="blg_xxx" async></script>`,
+              },
+              {
+                step: "02",
+                title: "Publish AI-optimized content",
+                desc: "Write in the rich editor or let AI draft it. Every post gets automatic SEO scoring, meta tags, and structured data before you hit publish.",
+                code: `// Fetch your published posts\nawait fetch('/api/v1/content?\n  project_key=blg_xxx')`,
+              },
+              {
+                step: "03",
+                title: "Track rankings, traffic & AI mentions",
+                desc: "Watch your organic traffic grow. Monitor when ChatGPT and Perplexity cite your content. Optimize what's working.",
+                code: `// Custom events\nwindow.rankflo.track(\n  'signup', { plan: 'pro' })`,
+              },
+            ].map((s) => (
+              <motion.div key={s.step} variants={staggerChildVariants} className="relative">
+                <div className="mb-4 flex items-center gap-3">
+                  <span className="text-5xl font-bold text-gray-900 select-none">{s.step}</span>
+                  <div className="h-px flex-1 bg-gray-800" />
+                </div>
+                <h3 className="text-lg font-semibold text-white">{s.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-500">{s.desc}</p>
+                <pre className="mt-4 overflow-x-auto rounded-xl border border-gray-800 bg-gray-950 p-4 text-xs leading-relaxed text-gray-300">
+                  <code>{s.code}</code>
+                </pre>
+              </motion.div>
+            ))}
+          </StaggerChildren>
+        </div>
+      </section>
+
+      {/* ─── FEATURES GRID ────────────────────────────────────── */}
+      <section className="py-24 bg-gray-950">
+        <div className="mx-auto max-w-wide px-6">
+          <FadeUp className="mb-14 text-center">
+            <p className="text-sm font-semibold text-accent">Built different</p>
+            <h2 className="mt-2 text-4xl font-bold tracking-tight text-white">No plugins. No bloat. Just features.</h2>
+          </FadeUp>
+
+          <StaggerChildren stagger={0.05} className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-gray-800 bg-gray-800 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              { title: "Block editor", desc: "14+ block types including code, embeds, callouts, and custom HTML. Content stored as portable JSON.", icon: "M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" },
+              { title: "REST + tRPC API", desc: "Type-safe APIs for posts, tags, search, sitemaps, and RSS. Plus webhooks on every publish event.", icon: "M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" },
+              { title: "Full-text search", desc: "Postgres-powered FTS with autocomplete, tag filtering, and built-in search analytics.", icon: "M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" },
+              { title: "AI writer", desc: "Generate full posts from a prompt. Supports OpenAI, Claude, Gemini, and local Ollama models.", icon: "M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" },
+              { title: "Media library", desc: "S3-compatible storage with drag-and-drop upload, image dimensions, and one-click URL copy.", icon: "M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" },
+              { title: "Team & RBAC", desc: "Admin, Editor, Author, Viewer roles. Invite by email. Org-level permissions built in.", icon: "M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" },
+              { title: "Custom domains", desc: "Point any domain to your blog with CNAME. Automatic HTTPS via your existing CDN.", icon: "M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3" },
+              { title: "Self-hostable", desc: "Docker + PostgreSQL + Redis. Deploy on any VPS. Own your data. No vendor lock-in.", icon: "M5.25 14.25h13.5m-13.5 0a3 3 0 01-3-3m3 3a3 3 0 100 6h13.5a3 3 0 100-6m-16.5-3a3 3 0 013-3h13.5a3 3 0 013 3m-19.5 0a4.5 4.5 0 01.9-2.7L5.737 5.1a3.375 3.375 0 012.7-1.35h7.126c1.062 0 2.062.5 2.7 1.35l2.587 3.45a4.5 4.5 0 01.9 2.7m0 0a3 3 0 01-3 3m0 3h.008v.008h-.008v-.008z" },
+            ].map((f) => (
+              <motion.div key={f.title} variants={staggerChildVariants} className="group bg-black p-7 transition-colors hover:bg-gray-950">
+                <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg bg-gray-900 text-accent">
+                  <svg className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d={f.icon} />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-semibold text-white">{f.title}</h3>
+                <p className="mt-1 text-sm text-gray-500 leading-relaxed">{f.desc}</p>
+              </motion.div>
+            ))}
+          </StaggerChildren>
+        </div>
+      </section>
+
+      {/* ─── OPEN SOURCE + PRICING STRIP ──────────────────────── */}
+      <section className="border-y border-gray-800 bg-black py-20">
+        <div className="mx-auto max-w-wide px-6">
+          <div className="grid gap-12 md:grid-cols-2 md:items-center">
+            {/* Open source */}
+            <FadeUp>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-gray-800 bg-gray-950 px-3 py-1 text-xs text-gray-400 mb-4">
+                <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                MIT License · Open Source
+              </span>
+              <h3 className="text-3xl font-bold text-white">Self-host free, forever</h3>
+              <p className="mt-3 text-gray-500 leading-relaxed">
+                RankFlo is fully open source. Deploy on your own server with Docker — no usage limits, no monthly fees, no vendor lock-in.
+              </p>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <a href="https://github.com/sitbonruben/RankFlo" className="inline-flex h-10 items-center gap-2 rounded-xl border border-gray-700 bg-gray-950 px-4 text-sm font-medium text-gray-300 hover:border-gray-600">
+                  <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                  GitHub repo
+                </a>
+                <a href="/docs" className="inline-flex h-10 items-center gap-2 rounded-xl border border-gray-700 bg-gray-950 px-4 text-sm font-medium text-gray-300 hover:border-gray-600">
+                  Self-hosting guide →
+                </a>
+              </div>
+            </FadeUp>
+
+            {/* Pricing cards */}
+            <div className="grid grid-cols-2 gap-4">
+              <ScaleIn delay={0.1}>
+                <div className="rounded-2xl border border-gray-800 bg-gray-950 p-6">
+                  <p className="text-sm font-semibold text-white">Free</p>
+                  <div className="mt-1 flex items-baseline gap-1">
+                    <span className="text-3xl font-bold text-white">$0</span>
+                    <span className="text-xs text-gray-500">forever</span>
+                  </div>
+                  <ul className="my-4 space-y-1.5">
+                    {["Unlimited posts", "Bring your own AI keys", "30-day analytics", "100 MB storage"].map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-xs text-gray-400">
+                        <svg className="h-3 w-3 shrink-0 text-accent" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                        </svg>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/signup" className="block w-full rounded-lg border border-gray-700 py-2 text-center text-sm font-semibold text-gray-300 transition-all hover:border-gray-600">
+                    Start free
+                  </Link>
+                </div>
+              </ScaleIn>
+              <ScaleIn delay={0.2}>
+                <div className="rounded-2xl border border-accent/40 bg-accent/5 p-6">
+                  <p className="text-sm font-semibold text-white">Pro</p>
+                  <div className="mt-1 flex items-baseline gap-1">
+                    <span className="text-3xl font-bold text-white">$5</span>
+                    <span className="text-xs text-gray-500">per month</span>
+                  </div>
+                  <ul className="my-4 space-y-1.5">
+                    {["Unlimited posts", "Bring your own AI keys", "1 year analytics retention", "10 GB storage + CDN", "Custom domain"].map((f) => (
+                      <li key={f} className="flex items-center gap-2 text-xs text-gray-400">
+                        <svg className="h-3 w-3 shrink-0 text-accent" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                        </svg>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/signup?plan=pro" className="block w-full rounded-lg bg-accent py-2 text-center text-sm font-semibold text-black transition-all hover:bg-accent-9">
+                    Try free 14 days
+                  </Link>
+                </div>
+              </ScaleIn>
+              <div className="col-span-2">
+                <Link href="/pricing" className="flex w-full items-center justify-center gap-1 text-sm text-gray-600 hover:text-gray-300 py-2">
+                  See full pricing including Enterprise →
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── FAQ ──────────────────────────────────────────────── */}
+      <section className="py-24 bg-gray-950">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: [
+                { "@type": "Question", name: "Is RankFlo free?", acceptedAnswer: { "@type": "Answer", text: "Yes. RankFlo has a generous free plan with unlimited posts, 30-day analytics, and 100 MB storage. Bring your own AI API keys. You can also self-host for free with no limits." } },
+                { "@type": "Question", name: "How is it different from WordPress or Ghost?", acceptedAnswer: { "@type": "Answer", text: "RankFlo is headless — content is served via a fast REST API. AI generation, SEO scoring, analytics, and LLM visibility tracking are all built in, not plugins." } },
+                { "@type": "Question", name: "What is LLM Visibility?", acceptedAnswer: { "@type": "Answer", text: "LLM Visibility tracks when AI assistants like ChatGPT, Perplexity, and Claude mention or cite your brand. You can log mentions, monitor competitor AI presence, and optimize your content to appear in AI-generated answers." } },
+                { "@type": "Question", name: "What AI models does it use?", acceptedAnswer: { "@type": "Answer", text: "RankFlo supports OpenAI (GPT-4), Anthropic (Claude), Google (Gemini), and local models via Ollama. Bring your own API key to use AI features." } },
+                { "@type": "Question", name: "Can I self-host RankFlo?", acceptedAnswer: { "@type": "Answer", text: "Yes. RankFlo is MIT-licensed and ships as a Docker Compose stack. Deploy on any VPS with PostgreSQL and Redis." } },
+                { "@type": "Question", name: "Do I need a credit card?", acceptedAnswer: { "@type": "Answer", text: "The free plan needs no card. Pro includes a 14-day free trial — card required to start, first payment after 14 days. Cancel anytime." } },
+              ],
+            }),
+          }}
+        />
+        <div className="mx-auto max-w-2xl px-6">
+          <FadeUp>
+            <p className="text-sm font-semibold text-accent mb-2">FAQ</p>
+            <h2 className="text-3xl font-bold tracking-tight text-white">Frequently asked questions</h2>
+            <p className="mt-3 text-gray-500">Everything you need to know about RankFlo.</p>
+          </FadeUp>
+          <FadeUp delay={0.1} className="mt-10 divide-y divide-gray-800 rounded-2xl border border-gray-800 bg-black">
+            {[
+              { q: "Is RankFlo free?", a: "Yes. The free plan includes unlimited posts, 30-day analytics, and 100 MB storage. You bring your own AI API keys — RankFlo charges nothing for AI usage. You can also self-host the entire platform for free with no limits." },
+              { q: "How is it different from Ghost or WordPress?", a: "RankFlo is headless — content is delivered via a fast REST API, not server-rendered themes. AI writing, real-time SEO scoring, cookieless analytics, and LLM visibility tracking are all built into the platform, not bolted on as plugins." },
+              { q: "What is LLM Visibility?", a: "LLM Visibility tracks when AI assistants like ChatGPT, Perplexity, and Claude mention your brand in their answers. You can log citations, monitor how competitors appear in AI responses, and optimize your content to get cited more often." },
+              { q: "What AI models does it support?", a: "RankFlo supports OpenAI (GPT-4o), Anthropic (Claude), Google (Gemini), and local models via Ollama. You bring your own API key — connect it in Settings and AI features are instantly available at your own cost." },
+              { q: "Can I self-host RankFlo?", a: "Yes. RankFlo is MIT-licensed and ships as a Docker Compose stack. Run it on any VPS with PostgreSQL and Redis. One command to start. Own your data completely with zero monthly fees to us." },
+              { q: "Do I need a credit card to start?", a: "The free plan needs no card. Pro trial requires a card to start — you get 14 days free, then payment begins. Cancel anytime during the trial." },
+            ].map(({ q, a }) => (
+              <details key={q} className="group">
+                <summary className="flex cursor-pointer items-center justify-between px-6 py-5 text-sm font-semibold text-white hover:text-accent transition-colors list-none">
+                  {q}
+                  <svg className="h-4 w-4 shrink-0 text-gray-600 transition-transform group-open:rotate-45" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                </summary>
+                <div className="px-6 pb-5 text-sm text-gray-400 leading-relaxed">{a}</div>
+              </details>
+            ))}
+          </FadeUp>
+        </div>
+      </section>
+
+      {/* ─── FINAL CTA ────────────────────────────────────────── */}
+      <section className="relative overflow-hidden bg-black py-28">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(57,255,20,0.1)_0%,transparent_60%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(57,255,20,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(57,255,20,0.03)_1px,transparent_1px)] bg-[size:64px_64px]" />
+        </div>
+        <FadeUp className="relative mx-auto max-w-xl px-6 text-center">
+          <h2 className="text-4xl font-bold tracking-tight text-white sm:text-5xl">
+            Start ranking in<br /><span className="text-accent">days, not months</span>
+          </h2>
+          <p className="mt-5 text-lg text-gray-400">
+            Free plan. 14-day Pro trial. Works in minutes.
+          </p>
+          <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+            <Link
+              href="/signup"
+              className="inline-flex h-13 w-full items-center justify-center rounded-xl bg-accent px-8 text-base font-semibold text-black transition-all hover:bg-accent-9 hover:shadow-[0_0_32px_rgba(57,255,20,0.4)] sm:w-auto"
+            >
+              Get started free
+            </Link>
+            <a
+              href="/docs"
+              className="inline-flex h-13 w-full items-center justify-center gap-2 rounded-xl border border-gray-700 px-8 text-base font-medium text-gray-300 transition-colors hover:border-gray-500 hover:text-white sm:w-auto"
+            >
+              Read the docs
+            </a>
+          </div>
+          <p className="mt-6 text-sm text-gray-600">
+            Or{" "}
+            <a href="https://github.com/sitbonruben/RankFlo" className="text-gray-500 underline underline-offset-2 hover:text-gray-300">
+              self-host for free on GitHub
+            </a>
+          </p>
+        </FadeUp>
+      </section>
+    </>
+  );
+}

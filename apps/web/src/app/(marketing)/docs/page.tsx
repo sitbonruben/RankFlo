@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Documentation",
   description: "Everything you need to build, deploy, and extend RankFlo — from first install to production webhooks.",
+  alternates: { canonical: "/docs" },
 };
 
 const cards = [

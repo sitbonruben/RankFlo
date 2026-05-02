@@ -5,6 +5,7 @@ import { Callout } from "@/components/marketing/docs-callout";
 export const metadata: Metadata = {
   title: "Self-Hosting — RankFlo Docs",
   description: "Deploy RankFlo on your own infrastructure with Docker Compose, environment variables, and production best practices.",
+  alternates: { canonical: "/docs/self-hosting" },
 };
 
 export default function SelfHostingPage() {
