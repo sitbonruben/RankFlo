@@ -1,77 +1,61 @@
 import type { MetadataRoute } from "next";
+import { headers } from "next/headers";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io";
 
-export default function robots(): MetadataRoute.Robots {
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const h = await headers();
+  const host = h.get("host") ?? "";
+  const isAppSubdomain = host.startsWith("app.");
+
+  // The app.* subdomain is the dashboard — block all crawling.
+  // Marketing pages on app.* should defer to the canonical at rankflo.io.
+  if (isAppSubdomain) {
+    return {
+      rules: [{ userAgent: "*", disallow: "/" }],
+      host: BASE_URL,
+    };
+  }
+
+  const PUBLIC_ALLOW = ["/", "/blog/", "/docs/", "/for/", "/compare/", "/alternatives/", "/integrations/", "/glossary/", "/tools/", "/features", "/pricing", "/about"];
+  const DASHBOARD_DISALLOW = [
+    "/api/",
+    "/overview",
+    "/posts",
+    "/pages",
+    "/projects",
+    "/media",
+    "/settings",
+    "/team",
+    "/analytics",
+    "/search",
+    "/seo",
+    "/webhooks",
+    "/api-keys",
+    "/onboarding",
+    "/calendar",
+    "/subscribers",
+    "/conversions",
+    "/llms",
+    "/admin",
+    "/login",
+    "/signup",
+    "/forgot-password",
+    "/reset-password",
+  ];
+
   return {
     rules: [
-      // Default: allow all public pages, block dashboard routes
-      {
-        userAgent: "*",
-        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/about"],
-        disallow: [
-          "/api/",
-          "/overview",
-          "/posts",
-          "/settings",
-          "/team",
-          "/media",
-          "/analytics",
-          "/seo",
-          "/webhooks",
-          "/api-keys",
-          "/projects",
-          "/onboarding",
-          "/calendar",
-          "/subscribers",
-        ],
-      },
-      // Google Search
-      {
-        userAgent: "Googlebot",
-        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/about"],
-        disallow: ["/api/", "/overview", "/posts", "/settings"],
-      },
-      // Google AI (Bard / Gemini training)
-      {
-        userAgent: "Google-Extended",
-        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing"],
-      },
-      // OpenAI / ChatGPT
-      {
-        userAgent: "GPTBot",
-        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
-      },
-      // Anthropic Claude
-      {
-        userAgent: "ClaudeBot",
-        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
-      },
-      // Anthropic crawler (alternate UA)
-      {
-        userAgent: "anthropic-ai",
-        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
-      },
-      // Perplexity AI
-      {
-        userAgent: "PerplexityBot",
-        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
-      },
-      // Apple Siri / Apple Intelligence
-      {
-        userAgent: "Applebot-Extended",
-        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing"],
-      },
-      // Meta AI
-      {
-        userAgent: "Meta-ExternalAgent",
-        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/"],
-      },
-      // Cohere AI
-      {
-        userAgent: "cohere-ai",
-        allow: ["/", "/blog/", "/docs/", "/for/", "/compare/", "/features", "/pricing", "/llms.txt"],
-      },
+      { userAgent: "*", allow: PUBLIC_ALLOW, disallow: DASHBOARD_DISALLOW },
+      { userAgent: "Googlebot", allow: PUBLIC_ALLOW, disallow: DASHBOARD_DISALLOW },
+      { userAgent: "Google-Extended", allow: PUBLIC_ALLOW },
+      { userAgent: "GPTBot", allow: [...PUBLIC_ALLOW, "/llms.txt"] },
+      { userAgent: "ClaudeBot", allow: [...PUBLIC_ALLOW, "/llms.txt"] },
+      { userAgent: "anthropic-ai", allow: [...PUBLIC_ALLOW, "/llms.txt"] },
+      { userAgent: "PerplexityBot", allow: [...PUBLIC_ALLOW, "/llms.txt"] },
+      { userAgent: "Applebot-Extended", allow: PUBLIC_ALLOW },
+      { userAgent: "Meta-ExternalAgent", allow: PUBLIC_ALLOW },
+      { userAgent: "cohere-ai", allow: [...PUBLIC_ALLOW, "/llms.txt"] },
     ],
     sitemap: `${BASE_URL}/sitemap.xml`,
     host: BASE_URL,

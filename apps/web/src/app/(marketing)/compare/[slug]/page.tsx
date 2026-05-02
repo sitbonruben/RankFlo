@@ -1,9 +1,12 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 type Props = {
   params: Promise<{ slug: string }>;
 };
+
+export const dynamicParams = false;
 
 interface ComparisonData {
   competitor: string;
@@ -141,7 +144,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const data = COMPARISONS[slug];
 
-  if (!data) return { title: "Not Found" };
+  if (!data) return { title: "Not Found", robots: { index: false, follow: false } };
 
   const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io";
   const title = `RankFlo vs ${data.competitor} — ${data.tagline}`;
@@ -169,13 +172,7 @@ export default async function ComparisonPage({ params }: Props) {
   const { slug } = await params;
   const data = COMPARISONS[slug];
 
-  if (!data) {
-    return (
-      <section className="py-24 text-center">
-        <h1 className="text-4xl font-bold">Page not found</h1>
-      </section>
-    );
-  }
+  if (!data) notFound();
 
   return (
     <>
