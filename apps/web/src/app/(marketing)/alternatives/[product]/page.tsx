@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import {
   ALTERNATIVES_PAGES,
@@ -10,14 +11,16 @@ type Props = {
   params: Promise<{ product: string }>;
 };
 
+export const dynamicParams = false;
+
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { product } = await params;
   const data = ALTERNATIVES_PAGES[product];
-  if (!data) return { title: "Not Found" };
+  if (!data) return { title: "Not Found", robots: { index: false, follow: false } };
   const target = PRODUCTS[data.targetProductSlug];
-  if (!target) return { title: "Not Found" };
+  if (!target) return { title: "Not Found", robots: { index: false, follow: false } };
 
   const title = `${data.headline} (${new Date().getFullYear()}) — 10 Modern Options`;
   const description = `Looking for a ${target.name} alternative? Here are 10 modern options for replacing ${target.name} — ranked, compared, and explained. Starting with RankFlo.`;
@@ -49,14 +52,9 @@ export function generateStaticParams() {
 export default async function AlternativesPage({ params }: Props) {
   const { product } = await params;
   const data = ALTERNATIVES_PAGES[product];
-  if (!data) {
-    return (
-      <section className="py-24 text-center">
-        <h1 className="text-4xl font-bold">Page not found</h1>
-      </section>
-    );
-  }
-  const target = PRODUCTS[data.targetProductSlug]!;
+  if (!data) notFound();
+  const target = PRODUCTS[data.targetProductSlug];
+  if (!target) notFound();
 
   // JSON-LD: ItemList schema for ranked listicle (great for rich results)
   const itemListSchema = {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { INTEGRATIONS, ALL_INTEGRATION_SLUGS } from "../../_data/integrations";
 
@@ -6,12 +7,14 @@ type Props = {
   params: Promise<{ platform: string }>;
 };
 
+export const dynamicParams = false;
+
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { platform } = await params;
   const data = INTEGRATIONS[platform];
-  if (!data) return { title: "Not Found" };
+  if (!data) return { title: "Not Found", robots: { index: false, follow: false } };
 
   const title = `${data.name} Integration — ${data.tagline} | RankFlo`;
   const description = data.description;
@@ -37,13 +40,7 @@ export function generateStaticParams() {
 export default async function IntegrationPage({ params }: Props) {
   const { platform } = await params;
   const data = INTEGRATIONS[platform];
-  if (!data) {
-    return (
-      <section className="py-24 text-center">
-        <h1 className="text-4xl font-bold">Page not found</h1>
-      </section>
-    );
-  }
+  if (!data) notFound();
 
   // Pick related integrations in same category
   const related = ALL_INTEGRATION_SLUGS

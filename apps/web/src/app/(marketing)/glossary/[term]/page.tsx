@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { GLOSSARY, ALL_GLOSSARY_SLUGS } from "../../_data/glossary";
 
@@ -6,12 +7,14 @@ type Props = {
   params: Promise<{ term: string }>;
 };
 
+export const dynamicParams = false;
+
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io";
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { term } = await params;
   const data = GLOSSARY[term];
-  if (!data) return { title: "Not Found" };
+  if (!data) return { title: "Not Found", robots: { index: false, follow: false } };
 
   const title = `${data.term} — Definition & Meaning | RankFlo Glossary`;
   const description = data.shortDef;
@@ -37,13 +40,7 @@ export function generateStaticParams() {
 export default async function GlossaryTermPage({ params }: Props) {
   const { term } = await params;
   const data = GLOSSARY[term];
-  if (!data) {
-    return (
-      <section className="py-24 text-center">
-        <h1 className="text-4xl font-bold">Term not found</h1>
-      </section>
-    );
-  }
+  if (!data) notFound();
 
   // Pick related terms — prefer explicit relatedTerms, fallback to same category
   let related = (data.relatedTerms ?? [])

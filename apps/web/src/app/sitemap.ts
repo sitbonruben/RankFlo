@@ -1,146 +1,160 @@
 import type { MetadataRoute } from "next";
 import { db } from "@rankflo/db";
+import { getAllComparisonSlugs } from "./(marketing)/_data/comparisons";
+import { ALL_TOPIC_SLUGS } from "./(marketing)/_data/topics";
+import { ALL_ALTERNATIVE_SLUGS } from "./(marketing)/_data/alternatives";
+import { ALL_INTEGRATION_SLUGS } from "./(marketing)/_data/integrations";
+import { ALL_GLOSSARY_SLUGS } from "./(marketing)/_data/glossary";
 
 export const dynamic = "force-dynamic";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io";
 const RANKFLO_PROJECT_ID = process.env.NEXT_PUBLIC_SELF_PROJECT_ID ?? "";
 
-// Topic cluster landing pages (programmatic SEO)
-const TOPICS = [
-  "blog-platform",
-  "headless-cms",
-  "content-management",
-  "seo-tools",
-  "ai-content-generation",
-  "self-hosted-blog",
-  "blogging-software",
-  "content-marketing",
-  "technical-writing",
-  "developer-blog",
-];
-
-// Competitor comparison pages
-const COMPARISONS = [
-  "rankflo-vs-wordpress",
-  "rankflo-vs-ghost",
-  "rankflo-vs-medium",
-  "rankflo-vs-substack",
-  "rankflo-vs-hashnode",
-  "rankflo-vs-contentful",
-  "rankflo-vs-strapi",
-  "rankflo-vs-sanity",
-];
-
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Fetch real published blog posts from DB (graceful fallback if DB unavailable)
+  const now = new Date();
+
   let posts: { slug: string; updatedAt: Date; publishedAt: Date | null }[] = [];
+  let tags: { slug: string }[] = [];
+  let authors: { id: string; updatedAt: Date }[] = [];
   try {
-    posts = await db.post.findMany({
-      where: {
-        projectId: RANKFLO_PROJECT_ID,
-        status: "PUBLISHED",
-        deletedAt: null,
-      },
-      select: { slug: true, updatedAt: true, publishedAt: true },
-      orderBy: { publishedAt: "desc" },
-    });
+    [posts, tags, authors] = await Promise.all([
+      db.post.findMany({
+        where: { projectId: RANKFLO_PROJECT_ID, status: "PUBLISHED", deletedAt: null },
+        select: { slug: true, updatedAt: true, publishedAt: true },
+        orderBy: { publishedAt: "desc" },
+      }),
+      db.tag.findMany({
+        where: { posts: { some: { post: { projectId: RANKFLO_PROJECT_ID, status: "PUBLISHED", deletedAt: null } } } },
+        select: { slug: true },
+      }),
+      db.user.findMany({
+        where: {
+          posts: { some: { projectId: RANKFLO_PROJECT_ID, status: "PUBLISHED", deletedAt: null } },
+        },
+        select: { id: true, updatedAt: true },
+      }),
+    ]);
   } catch {
     // DB not available at build time — serve static pages only
   }
 
   const staticPages: MetadataRoute.Sitemap = [
-    {
-      url: BASE_URL,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 1,
-    },
-    {
-      url: `${BASE_URL}/pricing`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.9,
-    },
-    {
-      url: `${BASE_URL}/features`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.9,
-    },
-    {
-      url: `${BASE_URL}/blog`,
-      lastModified: new Date(),
-      changeFrequency: "daily",
-      priority: 0.9,
-    },
-    {
-      url: `${BASE_URL}/about`,
-      lastModified: new Date(),
-      changeFrequency: "monthly",
-      priority: 0.7,
-    },
+    { url: BASE_URL, lastModified: now, changeFrequency: "weekly", priority: 1 },
+    { url: `${BASE_URL}/pricing`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${BASE_URL}/features`, lastModified: now, changeFrequency: "monthly", priority: 0.9 },
+    { url: `${BASE_URL}/blog`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
+    { url: `${BASE_URL}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${BASE_URL}/alternatives`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${BASE_URL}/integrations`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${BASE_URL}/glossary`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${BASE_URL}/docs`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE_URL}/tools`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
   ];
 
-  // Dynamic blog posts from DB (always accurate, no stale slugs)
+  const docPages: MetadataRoute.Sitemap = [
+    "getting-started",
+    "self-hosting",
+    "api-reference",
+    "user-guide",
+    "webhooks",
+    "analytics-setup",
+    "llm-visibility",
+  ].map((slug) => ({
+    url: `${BASE_URL}/docs/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
+
+  const toolPages: MetadataRoute.Sitemap = [
+    "blog-title-generator",
+    "meta-description-generator",
+    "reading-time-calculator",
+    "schema-generator",
+    "og-preview",
+    "robots-txt-generator",
+    "heading-checker",
+    "word-counter",
+    "slug-generator",
+    "markdown-to-html",
+    "keyword-density-checker",
+    "hreflang-generator",
+    "sitemap-generator",
+  ].map((slug) => ({
+    url: `${BASE_URL}/tools/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
   const blogPages: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `${BASE_URL}/blog/${post.slug}`,
-    lastModified: post.updatedAt ?? post.publishedAt ?? new Date(),
+    lastModified: post.updatedAt ?? post.publishedAt ?? now,
     changeFrequency: "weekly" as const,
     priority: 0.8,
   }));
 
-  // Topic landing pages
-  const topicPages: MetadataRoute.Sitemap = TOPICS.map((topic) => ({
+  const tagPages: MetadataRoute.Sitemap = tags.map((tag) => ({
+    url: `${BASE_URL}/blog/tag/${tag.slug}`,
+    lastModified: now,
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+  }));
+
+  const authorPages: MetadataRoute.Sitemap = authors.map((author) => ({
+    url: `${BASE_URL}/blog/author/${author.id}`,
+    lastModified: author.updatedAt ?? now,
+    changeFrequency: "weekly" as const,
+    priority: 0.5,
+  }));
+
+  const topicPages: MetadataRoute.Sitemap = ALL_TOPIC_SLUGS.map((topic) => ({
     url: `${BASE_URL}/for/${topic}`,
-    lastModified: new Date(),
+    lastModified: now,
     changeFrequency: "monthly" as const,
     priority: 0.8,
   }));
 
-  // Competitor comparison pages
-  const comparisonPages: MetadataRoute.Sitemap = COMPARISONS.map((slug) => ({
+  const comparisonPages: MetadataRoute.Sitemap = getAllComparisonSlugs().map((slug) => ({
     url: `${BASE_URL}/compare/${slug}`,
-    lastModified: new Date(),
+    lastModified: now,
     changeFrequency: "monthly" as const,
     priority: 0.7,
   }));
 
-  // Documentation pages
-  const docPages: MetadataRoute.Sitemap = [
-    "getting-started", "self-hosting", "api-reference", "user-guide", "webhooks", "analytics-setup", "llm-visibility",
-  ].map((slug) => ({
-    url: `${BASE_URL}/docs/${slug}`,
-    lastModified: new Date(),
+  const alternativesPages: MetadataRoute.Sitemap = ALL_ALTERNATIVE_SLUGS.map((slug) => ({
+    url: `${BASE_URL}/alternatives/${slug}`,
+    lastModified: now,
     changeFrequency: "monthly" as const,
     priority: 0.8,
   }));
 
-  const docsLanding: MetadataRoute.Sitemap = [{
-    url: `${BASE_URL}/docs`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.8,
-  }];
-
-  // Free tool pages
-  const toolPages: MetadataRoute.Sitemap = [
-    "blog-title-generator", "meta-description-generator", "reading-time-calculator",
-    "schema-generator", "og-preview", "robots-txt-generator", "heading-checker", "word-counter",
-    "slug-generator", "markdown-to-html", "keyword-density-checker", "hreflang-generator", "sitemap-generator",
-  ].map((slug) => ({
-    url: `${BASE_URL}/tools/${slug}`,
-    lastModified: new Date(),
+  const integrationPages: MetadataRoute.Sitemap = ALL_INTEGRATION_SLUGS.map((slug) => ({
+    url: `${BASE_URL}/integrations/${slug}`,
+    lastModified: now,
     changeFrequency: "monthly" as const,
     priority: 0.7,
   }));
 
-  const toolsLanding: MetadataRoute.Sitemap = [{
-    url: `${BASE_URL}/tools`,
-    lastModified: new Date(),
+  const glossaryPages: MetadataRoute.Sitemap = ALL_GLOSSARY_SLUGS.map((slug) => ({
+    url: `${BASE_URL}/glossary/${slug}`,
+    lastModified: now,
     changeFrequency: "monthly" as const,
-    priority: 0.8,
-  }];
+    priority: 0.6,
+  }));
 
-  return [...staticPages, ...docsLanding, ...docPages, ...toolsLanding, ...toolPages, ...blogPages, ...topicPages, ...comparisonPages];
+  return [
+    ...staticPages,
+    ...docPages,
+    ...toolPages,
+    ...blogPages,
+    ...tagPages,
+    ...authorPages,
+    ...topicPages,
+    ...comparisonPages,
+    ...alternativesPages,
+    ...integrationPages,
+    ...glossaryPages,
+  ];
 }
