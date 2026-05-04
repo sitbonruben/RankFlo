@@ -1,22 +1,15 @@
 import type { MetadataRoute } from "next";
-import { headers } from "next/headers";
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://rankflo.io";
 
-export default async function robots(): Promise<MetadataRoute.Robots> {
-  const h = await headers();
-  const host = h.get("host") ?? "";
-  const isAppSubdomain = host.startsWith("app.");
-
-  // The app.* subdomain is the dashboard — block all crawling.
-  // Marketing pages on app.* should defer to the canonical at rankflo.io.
-  if (isAppSubdomain) {
-    return {
-      rules: [{ userAgent: "*", disallow: "/" }],
-      host: BASE_URL,
-    };
-  }
-
+export default function robots(): MetadataRoute.Robots {
+  // Same rules on rankflo.io and app.rankflo.io.
+  // app.* responses already carry X-Robots-Tag: noindex, nofollow via
+  // middleware — that's what keeps the dashboard subdomain out of the
+  // index. We deliberately ALLOW crawling so Google can read the noindex
+  // header and the rel=canonical pointing back to rankflo.io, which is
+  // what consolidates ranking signals. Disallowing the host outright
+  // would prevent Google from ever seeing those signals.
   const PUBLIC_ALLOW = ["/", "/blog/", "/docs/", "/for/", "/compare/", "/alternatives/", "/integrations/", "/glossary/", "/migrate/", "/use-cases/", "/tools/", "/features", "/pricing", "/about"];
   const DASHBOARD_DISALLOW = [
     "/api/",
