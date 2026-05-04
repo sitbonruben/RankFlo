@@ -5,6 +5,8 @@ import { ALL_TOPIC_SLUGS } from "./(marketing)/_data/topics";
 import { ALL_ALTERNATIVE_SLUGS } from "./(marketing)/_data/alternatives";
 import { ALL_INTEGRATION_SLUGS } from "./(marketing)/_data/integrations";
 import { ALL_GLOSSARY_SLUGS } from "./(marketing)/_data/glossary";
+import { ALL_MIGRATION_SLUGS } from "./(marketing)/_data/migrations";
+import { ALL_USE_CASE_SLUGS } from "./(marketing)/_data/use-cases";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +50,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/alternatives`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${BASE_URL}/integrations`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${BASE_URL}/glossary`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
+    { url: `${BASE_URL}/migrate`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE_URL}/use-cases`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE_URL}/docs`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE_URL}/tools`, lastModified: now, changeFrequency: "monthly", priority: 0.8 },
   ];
@@ -144,6 +148,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
+  const migratePages: MetadataRoute.Sitemap = ALL_MIGRATION_SLUGS.map((slug) => ({
+    url: `${BASE_URL}/migrate/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.8,
+  }));
+
+  const useCasePages: MetadataRoute.Sitemap = ALL_USE_CASE_SLUGS.map((slug) => ({
+    url: `${BASE_URL}/use-cases/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
   return [
     ...staticPages,
     ...docPages,
@@ -156,5 +174,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...alternativesPages,
     ...integrationPages,
     ...glossaryPages,
+    ...migratePages,
+    ...useCasePages,
   ];
 }

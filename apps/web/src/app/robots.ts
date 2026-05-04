@@ -17,7 +17,7 @@ export default async function robots(): Promise<MetadataRoute.Robots> {
     };
   }
 
-  const PUBLIC_ALLOW = ["/", "/blog/", "/docs/", "/for/", "/compare/", "/alternatives/", "/integrations/", "/glossary/", "/tools/", "/features", "/pricing", "/about"];
+  const PUBLIC_ALLOW = ["/", "/blog/", "/docs/", "/for/", "/compare/", "/alternatives/", "/integrations/", "/glossary/", "/migrate/", "/use-cases/", "/tools/", "/features", "/pricing", "/about"];
   const DASHBOARD_DISALLOW = [
     "/api/",
     "/overview",
