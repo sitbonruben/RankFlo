@@ -5,7 +5,7 @@ import { trpc } from "@/trpc/client";
 
 // ─── Types ──────────────────────────────────────────────────
 type EntryType = "BLOG_POST" | "SOCIAL_POST" | "EMAIL_CAMPAIGN" | "LANDING_PAGE" | "VIDEO" | "PODCAST" | "WEBINAR" | "OTHER";
-type EntryStatus = "idea" | "planned" | "in_progress" | "in_review" | "approved" | "published" | "cancelled" | "scheduled";
+type EntryStatus = "idea" | "planned" | "in_progress" | "in_review" | "approved" | "published" | "cancelled" | "scheduled" | "overdue";
 type ViewMode = "month" | "week";
 
 // Derive CalendarEntry from the tRPC query return type
@@ -87,6 +87,7 @@ const STATUS_DOT_COLORS: Record<string, string> = {
   published: "bg-green-500 dark:bg-accent",
   cancelled: "bg-red-400 dark:bg-red-500",
   scheduled: "bg-purple-500 dark:bg-purple-400",
+  overdue: "bg-red-500 dark:bg-red-500",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -98,6 +99,7 @@ const STATUS_LABELS: Record<string, string> = {
   published: "Published",
   cancelled: "Cancelled",
   scheduled: "Scheduled",
+  overdue: "Overdue",
 };
 
 const DAYS_OF_WEEK = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -217,21 +219,42 @@ export default function CalendarPage() {
   // ─── Map raw entries to CalendarEntry format ───────────────
   const entries: CalendarEntry[] = useMemo(() => {
     if (!listQuery.data) return [];
+    const now = new Date();
     return listQuery.data.items
       .filter((item) => item.scheduledDate != null && item.entryType === "BLOG_POST")
       .map((item) => {
-        // If the linked post is SCHEDULED, surface that as the status
-        const postStatus = item.post?.status?.toLowerCase();
-        const effectiveStatus: EntryStatus =
-          postStatus === "scheduled" ? "scheduled" as EntryStatus :
-          postStatus === "published" ? "published" :
-          mapStatus(item.status);
+        const postStatus = item.post?.status;
+        const publishedAt = item.post?.publishedAt ? new Date(item.post.publishedAt) : null;
+        const scheduledDate = new Date(item.scheduledDate!);
+
+        // Display the entry on the date it actually went live (publishedAt) when
+        // the post is already PUBLISHED. Otherwise show on its planned date.
+        const date =
+          postStatus === "PUBLISHED" && publishedAt
+            ? publishedAt
+            : scheduledDate;
+
+        // Status displayed in the calendar reflects ground truth, not just the
+        // CalendarEntry.status which can drift from the post's lifecycle:
+        //   PUBLISHED post           → "published" (regardless of date)
+        //   SCHEDULED post + future  → "scheduled"
+        //   SCHEDULED post + past    → "overdue" (cron didn't auto-publish)
+        //   anything else            → fall back to entry.status
+        let effectiveStatus: EntryStatus;
+        if (postStatus === "PUBLISHED") {
+          effectiveStatus = "published";
+        } else if (postStatus === "SCHEDULED") {
+          effectiveStatus = scheduledDate <= now ? "overdue" : "scheduled";
+        } else {
+          effectiveStatus = mapStatus(item.status);
+        }
+
         return {
           id: item.id,
           title: item.title,
           type: item.entryType as EntryType,
           status: effectiveStatus,
-          date: new Date(item.scheduledDate!),
+          date,
           assignee: item.assignee?.name ?? "LeadsterHub Team",
           raw: item,
         };
@@ -258,16 +281,16 @@ export default function CalendarPage() {
       .slice(0, 5);
   }, [entries]);
 
-  // Stats from tRPC
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {
       scheduled: 0,
+      overdue: 0,
       planned: 0,
       in_progress: 0,
       published: 0,
     };
-    // Count "scheduled" from linked posts with SCHEDULED status
     counts.scheduled = entries.filter((e) => e.status === "scheduled").length;
+    counts.overdue = entries.filter((e) => e.status === "overdue").length;
     counts.published = entries.filter((e) => e.status === "published").length;
     counts.in_progress = entries.filter((e) => e.status === "in_progress").length;
     counts.planned = entries.filter((e) => e.status === "planned").length;
@@ -565,7 +588,7 @@ export default function CalendarPage() {
               <span className="text-[11px] text-gray-500 dark:text-gray-400">Blog Post</span>
             </div>
             <div className="mx-2 h-3 w-px bg-gray-200 dark:bg-gray-800" />
-            {(["scheduled", "planned", "in_progress", "published", "cancelled"] as const).map((status) => (
+            {(["scheduled", "overdue", "planned", "in_progress", "published", "cancelled"] as const).map((status) => (
               <div key={status} className="flex items-center gap-1.5">
                 <span className={`inline-block h-2 w-2 rounded-full ${STATUS_DOT_COLORS[status]}`} />
                 <span className="text-[11px] capitalize text-gray-500 dark:text-gray-400">
@@ -658,7 +681,7 @@ export default function CalendarPage() {
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-px bg-gray-100 dark:bg-gray-800/50">
-                {(["scheduled", "planned", "in_progress", "published"] as const).map((status) => (
+                {(["scheduled", "overdue", "in_progress", "published"] as const).map((status) => (
                   <div
                     key={status}
                     className="flex flex-col items-center gap-1 bg-white px-4 py-5 dark:bg-gray-950"
@@ -685,7 +708,7 @@ export default function CalendarPage() {
             </div>
             <div className="p-4">
               <div className="flex flex-col gap-2">
-                {(["scheduled", "planned", "in_progress", "published"] as const).map((status) => {
+                {(["scheduled", "overdue", "in_progress", "published"] as const).map((status) => {
                   const count = statusCounts[status] ?? 0;
                   const total = entries.length;
                   const pct = total > 0 ? (count / total) * 100 : 0;
@@ -702,7 +725,7 @@ export default function CalendarPage() {
                       </div>
                       <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                         <div
-                          className={`h-full rounded-full transition-all ${status === "scheduled" ? "bg-purple-400" : status === "published" ? "bg-green-500 dark:bg-accent" : status === "in_progress" ? "bg-yellow-400" : "bg-blue-400"}`}
+                          className={`h-full rounded-full transition-all ${status === "scheduled" ? "bg-purple-400" : status === "overdue" ? "bg-red-500" : status === "published" ? "bg-green-500 dark:bg-accent" : status === "in_progress" ? "bg-yellow-400" : "bg-blue-400"}`}
                           style={{ width: `${pct}%` }}
                         />
                       </div>

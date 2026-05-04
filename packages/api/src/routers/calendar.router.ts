@@ -70,7 +70,7 @@ export const calendarRouter = router({
             select: { id: true, name: true, avatarUrl: true },
           },
           post: {
-            select: { id: true, title: true, slug: true, status: true },
+            select: { id: true, title: true, slug: true, status: true, publishedAt: true, scheduledAt: true },
           },
         },
       });
@@ -153,7 +153,7 @@ export const calendarRouter = router({
             select: { id: true, name: true, avatarUrl: true },
           },
           post: {
-            select: { id: true, title: true, slug: true, status: true },
+            select: { id: true, title: true, slug: true, status: true, publishedAt: true, scheduledAt: true },
           },
         },
       });
@@ -239,7 +239,7 @@ export const calendarRouter = router({
             select: { id: true, name: true, avatarUrl: true },
           },
           post: {
-            select: { id: true, title: true, slug: true, status: true },
+            select: { id: true, title: true, slug: true, status: true, publishedAt: true, scheduledAt: true },
           },
         },
       });
@@ -299,7 +299,7 @@ export const calendarRouter = router({
             select: { id: true, name: true, avatarUrl: true },
           },
           post: {
-            select: { id: true, title: true, slug: true, status: true },
+            select: { id: true, title: true, slug: true, status: true, publishedAt: true, scheduledAt: true },
           },
         },
       });
